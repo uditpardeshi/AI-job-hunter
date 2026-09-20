@@ -1,0 +1,133 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai-job-hunter-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_job_hunter}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ai_job_hunter}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jobhunter-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai-job-hunter-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jobhunter-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-job-hunter-ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "cat /proc/net/tcp | grep -q :2CA6 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - jobhunter-network
+
+  ai:
+    build:
+      context: ./services/ai
+      dockerfile: Dockerfile
+    container_name: ai-job-hunter-ai
+    restart: unless-stopped
+    environment:
+      HOST: "0.0.0.0"
+      AI_PORT: "8000"
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      NODE_ENV: ${NODE_ENV:-development}
+    ports:
+      - "${AI_PORT:-8000}:8000"
+    depends_on:
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jobhunter-network
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: ai-job-hunter-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      API_PORT: "4000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ai_job_hunter}
+      REDIS_URL: redis://redis:6379
+      AI_SERVICE_URL: http://ai:8000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      RESUME_STORAGE_PATH: /app/storage/resumes
+      MAX_RESUME_SIZE_MB: ${MAX_RESUME_SIZE_MB:-10}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+    networks:
+      - jobhunter-network
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    container_name: ai-job-hunter-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+    networks:
+      - jobhunter-network
+
+networks:
+  jobhunter-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:
