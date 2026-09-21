@@ -1,5 +1,5 @@
 import { IJobSourceConnector } from '../types';
-import { RawJob, JobSourceCapabilities } from '@ai-job-hunter/shared';
+import { RawJob, JobSourceCapabilities, SourceCapabilities } from '@ai-job-hunter/shared';
 import { logger } from '../../utils/logger';
 
 export class ArbeitnowJobSource implements IJobSourceConnector {
@@ -59,5 +59,20 @@ export class ArbeitnowJobSource implements IJobSourceConnector {
       logger.error(`Failed to fetch jobs from Arbeitnow: ${errorMsg}`);
       throw new Error(`Arbeitnow connector error: ${errorMsg}`);
     }
+  }
+
+  public getSourceCapabilities(): SourceCapabilities {
+    return {
+      jobSearch: true,
+      jobDetails: true,
+      apiAvailable: true,
+      publicFeedAvailable: true,
+      applicationUrlAvailable: true,
+      automatedApplicationAllowed: false,
+      browserAutomationAllowed: false,
+      requiresAuthentication: false,
+      requiresHumanApproval: true,
+      applicationMode: 'MANUAL_ONLY',
+    };
   }
 }

@@ -4,6 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import settings
 from app.routes.health import router as health_router
 from app.routes.resume import router as resume_router
+from app.routes.job import router as job_router
+from app.routes.embeddings import router as embeddings_router
+from app.routes.tailor import router as tailor_router
+from app.routes.email import router as email_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,6 +32,10 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(resume_router)
+app.include_router(job_router)
+app.include_router(embeddings_router)
+app.include_router(tailor_router)
+app.include_router(email_router)
 
 @app.on_event("startup")
 async def startup_event():

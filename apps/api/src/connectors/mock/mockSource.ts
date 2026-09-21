@@ -1,7 +1,13 @@
-import { IJobSourceConnector } from '../types';
-import { RawJob, JobSourceCapabilities } from '@ai-job-hunter/shared';
+import {
+  IJobSourceConnector,
+  IApplicationConnector,
+  ApplicationContext,
+  ApplicationPreparationResult,
+  ApplicationSubmissionResult,
+} from '../types';
+import { RawJob, JobSourceCapabilities, SourceCapabilities, SourceApplicationMode } from '@ai-job-hunter/shared';
 
-export class MockJobSource implements IJobSourceConnector {
+export class MockJobSource implements IJobSourceConnector, IApplicationConnector {
   public readonly id = 'mock';
   public readonly name = 'Mock Job Provider';
   public readonly capabilities: JobSourceCapabilities = {
@@ -168,5 +174,54 @@ export class MockJobSource implements IJobSourceConnector {
         },
       },
     ];
+  }
+
+  public getSourceCapabilities(): SourceCapabilities {
+    return {
+      jobSearch: true,
+      jobDetails: true,
+      apiAvailable: true,
+      publicFeedAvailable: false,
+      applicationUrlAvailable: true,
+      automatedApplicationAllowed: true,
+      browserAutomationAllowed: true,
+      requiresAuthentication: false,
+      requiresHumanApproval: false,
+      applicationMode: 'AUTOMATED',
+    };
+  }
+
+  // Application Connector implementation for mock/dev testing
+  public canApply(): boolean {
+    return true;
+  }
+
+  public getApplicationMode(): SourceApplicationMode {
+    return 'AUTOMATED';
+  }
+
+  public async prepareApplication(ctx: ApplicationContext): Promise<ApplicationPreparationResult> {
+    return {
+      status: 'READY',
+      preparedAnswers: {
+        fullName: 'Alex Rivera',
+        email: 'alex.rivera@example.com',
+        phone: '+1 (555) 234-5678',
+        yearsOfExperience: 5,
+        workAuthorization: 'Authorized to work in US/India',
+      },
+      missingAnswers: [],
+      warnings: [],
+    };
+  }
+
+  public async submitApplication(ctx: ApplicationContext): Promise<ApplicationSubmissionResult> {
+    const confirmationId = `MOCK-APP-${Date.now().toString(36).toUpperCase()}`;
+    return {
+      status: 'SUBMITTED',
+      sourceApplicationId: confirmationId,
+      confirmationUrl: `https://mock.example.com/applications/${confirmationId}`,
+      confirmationText: `Application successfully received. Confirmation #${confirmationId}`,
+    };
   }
 }

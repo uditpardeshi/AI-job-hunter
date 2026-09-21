@@ -79,19 +79,31 @@ export class JobService {
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    const sortField = params.sortBy === 'created_at' ? 'created_at' : 'posted_at';
+
+    let orderClause = 'ORDER BY j.posted_at DESC NULLS LAST, j.created_at DESC';
     const sortDir = params.sortOrder === 'ASC' ? 'ASC' : 'DESC';
+
+    if (params.sortBy === 'match') {
+      orderClause = `ORDER BY jm.match_score ${sortDir} NULLS LAST, j.posted_at DESC NULLS LAST`;
+    } else if (params.sortBy === 'created_at') {
+      orderClause = `ORDER BY j.created_at ${sortDir} NULLS LAST`;
+    } else if (params.sortBy === 'posted_at') {
+      orderClause = `ORDER BY j.posted_at ${sortDir} NULLS LAST, j.created_at DESC`;
+    }
 
     const sql = `
       SELECT 
-        id, source_id, source_job_id, title, company, company_url, job_url, location,
-        remote_type, employment_type, description, salary_min, salary_max, salary_currency,
-        experience_min, experience_max, posted_at, expires_at, skills, status, raw_data,
-        first_seen_at, last_seen_at, created_at, updated_at,
+        j.id, j.source_id, j.source_job_id, j.title, j.company, j.company_url, j.job_url, j.location,
+        j.remote_type, j.employment_type, j.description, j.salary_min, j.salary_max, j.salary_currency,
+        j.experience_min, j.experience_max, j.posted_at, j.expires_at, j.skills, j.status, j.raw_data,
+        j.first_seen_at, j.last_seen_at, j.created_at, j.updated_at,
+        jm.match_score, jm.matched_skills, jm.missing_required_skills,
         COUNT(*) OVER() AS total_count
-      FROM jobs
+      FROM jobs j
+      LEFT JOIN candidate_profiles cp ON cp.user_id = '00000000-0000-0000-0000-000000000001'
+      LEFT JOIN job_matches jm ON j.id = jm.job_id AND jm.candidate_id = cp.id
       ${whereSql}
-      ORDER BY ${sortField} ${sortDir} NULLS LAST, created_at DESC
+      ${orderClause}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1};
     `;
 
@@ -102,7 +114,7 @@ export class JobService {
     const total = res.rows.length > 0 ? Number(res.rows[0].total_count) : 0;
     const totalPages = Math.ceil(total / limit) || 1;
 
-    const jobs: Job[] = res.rows.map((row) => ({
+    const jobs = res.rows.map((row) => ({
       id: row.id,
       sourceId: row.source_id,
       sourceJobId: row.source_job_id,
@@ -128,6 +140,9 @@ export class JobService {
       lastSeenAt: row.last_seen_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      matchScore: row.match_score !== null && row.match_score !== undefined ? Number(row.match_score) : null,
+      matchedSkills: row.matched_skills || [],
+      missingRequiredSkills: row.missing_required_skills || [],
     }));
 
     return {

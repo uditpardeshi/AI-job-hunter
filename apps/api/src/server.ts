@@ -4,6 +4,15 @@ import { config } from './config';
 import { healthRouter } from './routes/healthRoutes';
 import { resumeRouter } from './routes/resumeRoutes';
 import { jobRouter } from './routes/jobRoutes';
+import matchRouter from './routes/matchRoutes';
+import tailoringRouter from './routes/tailoringRoutes';
+import applicationRouter from './routes/applicationRoutes';
+import dashboardRouter from './routes/dashboardRoutes';
+import gmailRouter from './routes/gmailRoutes';
+import emailRouter from './routes/emailRoutes';
+import automationRouter from './routes/automationRoutes';
+import approvalRouter from './routes/approvalRoutes';
+import { QueueManager } from './queues/queueManager';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { pool } from './db';
@@ -45,6 +54,38 @@ app.use('/api', resumeRouter);
 app.use(jobRouter);
 app.use('/api', jobRouter);
 
+// Mount match routes
+app.use(matchRouter);
+app.use('/api', matchRouter);
+
+// Mount tailoring & cover letter routes
+app.use(tailoringRouter);
+app.use('/api', tailoringRouter);
+
+// Mount application tracker routes
+app.use(applicationRouter);
+app.use('/api', applicationRouter);
+
+// Mount dashboard routes
+app.use(dashboardRouter);
+app.use('/api', dashboardRouter);
+
+// Mount Gmail integration routes
+app.use(gmailRouter);
+app.use('/api', gmailRouter);
+
+// Mount email assistant routes
+app.use(emailRouter);
+app.use('/api', emailRouter);
+
+// Mount automation routes
+app.use('/automation', automationRouter);
+app.use('/api/automation', automationRouter);
+
+// Mount approval queue routes
+app.use('/approvals', approvalRouter);
+app.use('/api/approvals', approvalRouter);
+
 // Fallback route for 404
 app.use((_req: Request, res: Response) => {
   res.status(404).json({
@@ -69,6 +110,12 @@ const server = app.listen(config.port, async () => {
   } catch (migErr) {
     logger.error('Failed to run initial migrations on startup:', migErr);
   }
+
+  try {
+    QueueManager.initWorkers();
+  } catch (qErr) {
+    logger.warn('Failed to initialize QueueManager workers:', qErr);
+  }
 });
 
 // Graceful shutdown
@@ -76,6 +123,12 @@ async function gracefulShutdown(signal: string) {
   logger.info(`Received ${signal}. Starting graceful shutdown...`);
   server.close(async () => {
     logger.info('HTTP server closed.');
+    try {
+      await QueueManager.closeAll();
+      logger.info('QueueManager queues closed.');
+    } catch (e) {
+      logger.warn('Error closing QueueManager:', e);
+    }
     try {
       await pool.end();
       logger.info('PostgreSQL pool closed.');

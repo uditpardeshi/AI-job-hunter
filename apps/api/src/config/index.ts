@@ -12,4 +12,6 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ai_job_hunter',
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
   aiServiceUrl: process.env.AI_SERVICE_URL || 'http://localhost:8000',
+  automationEnv: process.env.AUTOMATION_ENV || 'development',
+  enableApplicationAutomation: process.env.ENABLE_APPLICATION_AUTOMATION === 'true',
 };
