@@ -36,6 +36,27 @@ export class DashboardService {
       countsMap[r.status] = Number(r.count);
     }
 
+    // 2b. Preparations awaiting approval
+    const awaitingApprovalRes = await pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM application_preparations
+       WHERE user_id = $1 AND status IN ('READY', 'NEEDS_USER_INPUT');`,
+      [userId]
+    );
+    const awaitingApproval = awaitingApprovalRes.rows[0]?.count || 0;
+
+    // 2c. Recruiter emails & pending email replies
+    const emailCountsRes = await pool.query(
+      `SELECT 
+         COUNT(*) FILTER (WHERE category IN ('RECRUITER_MESSAGE', 'INTERVIEW_INVITATION', 'JOB_OPPORTUNITY'))::int AS recruiter_emails,
+         COUNT(*) FILTER (WHERE requires_response = true AND direction = 'INBOUND')::int AS pending_replies
+       FROM emails
+       WHERE user_id = $1;`,
+      [userId]
+    );
+    const recruiterEmails = emailCountsRes.rows[0]?.recruiter_emails || 0;
+    const pendingEmailReplies = emailCountsRes.rows[0]?.pending_replies || 0;
+
     const stats: DashboardStats = {
       jobsFound,
       saved: countsMap['SAVED'] || 0,
@@ -46,6 +67,9 @@ export class DashboardService {
       offers: countsMap['OFFER'] || 0,
       rejected: countsMap['REJECTED'] || 0,
       withdrawn: countsMap['WITHDRAWN'] || 0,
+      awaitingApproval,
+      recruiterEmails,
+      pendingEmailReplies,
     };
 
     // 3. Recent applications (Top 5 updated)

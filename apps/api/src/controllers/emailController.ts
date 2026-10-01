@@ -1,12 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { EmailService } from '../services/emailService';
-import { DEFAULT_USER_ID } from '../db/migrations';
 import { EmailCategory, EmailDirection } from '@ai-job-hunter/shared';
 
 export class EmailController {
   public static async listEmails(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const {
         category,
         applicationId,
@@ -45,7 +44,7 @@ export class EmailController {
 
   public static async getEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const id = req.params.id;
 
       const email = await EmailService.getEmailById(id, userId);
@@ -65,7 +64,7 @@ export class EmailController {
 
   public static async associateEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const id = req.params.id;
       const { applicationId } = req.body || {};
 
@@ -88,7 +87,7 @@ export class EmailController {
 
   public static async handleSuggestion(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const id = req.params.id;
       const { action } = req.body || {};
 
@@ -111,7 +110,7 @@ export class EmailController {
 
   public static async generateDraft(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const { applicationId, emailId, purpose, tone, userInstructions } = req.body || {};
 
       if (!purpose) {
@@ -136,9 +135,32 @@ export class EmailController {
     }
   }
 
+  public static async generateReplyForEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const emailId = req.params.id;
+      const { purpose = 'RECRUITER_REPLY', tone = 'professional', userInstructions, applicationId } = req.body || {};
+
+      const draft = await EmailService.generateDraft(userId, {
+        applicationId,
+        emailId,
+        purpose,
+        tone,
+        userInstructions,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: draft,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   public static async saveDraft(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const draftData = req.body || {};
 
       const saved = await EmailService.saveDraft(userId, draftData);
@@ -152,9 +174,40 @@ export class EmailController {
     }
   }
 
+  public static async updateDraft(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const draftId = req.params.id;
+      const updates = req.body || {};
+
+      const updated = await EmailService.updateDraft(draftId, userId, updates);
+      res.status(200).json({
+        success: true,
+        data: updated,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  public static async deleteDraft(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const draftId = req.params.id;
+
+      const deleted = await EmailService.deleteDraft(draftId, userId);
+      res.status(200).json({
+        success: true,
+        message: deleted ? 'Draft discarded' : 'Draft not found',
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   public static async listDrafts(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const { applicationId } = req.query;
 
       const drafts = await EmailService.listDrafts(userId, applicationId as string);
@@ -168,9 +221,25 @@ export class EmailController {
     }
   }
 
+  public static async listDraftsForEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const emailId = req.params.id;
+
+      const drafts = await EmailService.listDrafts(userId, undefined, emailId);
+
+      res.status(200).json({
+        success: true,
+        data: drafts,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   public static async sendEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const { applicationId, draftId, to, cc, subject, body, attachments } = req.body || {};
 
       if (!to || !Array.isArray(to) || to.length === 0) {
@@ -214,7 +283,7 @@ export class EmailController {
 
   public static async listContacts(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const applicationId = req.params.applicationId;
 
       const contacts = await EmailService.listContacts(applicationId, userId);
@@ -230,7 +299,7 @@ export class EmailController {
 
   public static async createContact(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const applicationId = req.params.applicationId;
       const { name, email, role, company, linkedinUrl, notes } = req.body || {};
 
@@ -260,7 +329,7 @@ export class EmailController {
 
   public static async deleteContact(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const contactId = req.params.contactId;
 
       const deleted = await EmailService.deleteContact(contactId, userId);

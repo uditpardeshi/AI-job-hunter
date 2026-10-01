@@ -23,6 +23,8 @@ import {
   Power,
 } from 'lucide-react';
 import { AutomationSummary, AutomationEvent } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
+import Navbar from '@/components/Navbar';
 
 export default function AutomationCommandCenter() {
   const [summary, setSummary] = useState<AutomationSummary | null>(null);
@@ -34,7 +36,13 @@ export default function AutomationCommandCenter() {
   const fetchSummary = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/automation/summary`, { cache: 'no-store' });
+      const res = await authFetch(`${apiUrl}/api/automation/summary`, { cache: 'no-store' });
+      if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+          return;
+        }
+      }
       const json = await res.json();
       if (json.success) {
         setSummary(json.data);
@@ -60,9 +68,8 @@ export default function AutomationCommandCenter() {
     setSuccessMsg(null);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/automation/run`, {
+      const res = await authFetch(`${apiUrl}/api/automation/run`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
       const json = await res.json();
@@ -70,7 +77,7 @@ export default function AutomationCommandCenter() {
         setSuccessMsg('Automation pipeline triggered successfully!');
         fetchSummary();
       } else {
-        setError(json.error || 'Failed to trigger automation');
+        setError(json.error || json.message || 'Failed to trigger automation');
       }
     } catch (err: any) {
       setError(err.message || 'Error triggering run');
@@ -89,7 +96,7 @@ export default function AutomationCommandCenter() {
     try {
       if (summary.settings.killSwitchActive) {
         // Resume
-        const res = await fetch(`${apiUrl}/api/automation/resume`, { method: 'POST' });
+        const res = await authFetch(`${apiUrl}/api/automation/resume`, { method: 'POST' });
         const json = await res.json();
         if (json.success) {
           setSuccessMsg('Emergency Kill Switch deactivated. System resumed.');
@@ -99,9 +106,8 @@ export default function AutomationCommandCenter() {
         }
       } else {
         // Trigger Kill Switch
-        const res = await fetch(`${apiUrl}/api/automation/kill-switch`, {
+        const res = await authFetch(`${apiUrl}/api/automation/kill-switch`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reason: 'Triggered by user from command center' }),
         });
         const json = await res.json();
@@ -147,9 +153,11 @@ export default function AutomationCommandCenter() {
   const isEnabled = summary?.settings.automationEnabled && !isKilled;
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-10 max-w-7xl mx-auto space-y-8">
-      {/* Header with Kill Switch & Quick Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      <Navbar />
+      <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6">
+        {/* Header with Kill Switch & Quick Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/60 p-5 rounded-2xl border border-slate-800 backdrop-blur-md">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <div className={`p-2.5 rounded-xl border ${isKilled ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-sky-500/10 border-sky-500/30 text-sky-400'}`}>
@@ -495,6 +503,7 @@ export default function AutomationCommandCenter() {
             </Link>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

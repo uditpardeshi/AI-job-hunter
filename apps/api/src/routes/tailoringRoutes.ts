@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { TailoringController } from '../controllers/tailoringController';
+import { requireAuth } from '../middleware/authMiddleware';
 
 const router = Router();
+
+router.use(requireAuth);
 
 // Tailored Resume Endpoints
 router.post('/jobs/:jobId/tailor-resume', TailoringController.tailorResume);

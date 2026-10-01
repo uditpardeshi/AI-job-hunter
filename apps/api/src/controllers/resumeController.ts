@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { ResumeService } from '../services/resumeService';
-import { DEFAULT_USER_ID } from '../db/migrations';
 import { logger } from '../utils/logger';
 
 export class ResumeController {
@@ -11,7 +10,7 @@ export class ResumeController {
         return;
       }
 
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const metadata = await ResumeService.registerUpload(userId, req.file);
 
       // Auto-trigger processing if requested or by default
@@ -50,7 +49,7 @@ export class ResumeController {
 
   public static async listResumes(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const resumes = await ResumeService.listResumes(userId);
       res.status(200).json({ status: 'ok', resumes });
     } catch (err) {
@@ -60,7 +59,7 @@ export class ResumeController {
 
   public static async getResume(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const resume = await ResumeService.getResume(req.params.id, userId);
       if (!resume) {
         res.status(404).json({ status: 'error', message: 'Resume not found.' });
@@ -74,7 +73,7 @@ export class ResumeController {
 
   public static async processResume(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const profile = await ResumeService.processResume(req.params.id, userId);
       res.status(200).json({
         status: 'ok',
@@ -88,7 +87,7 @@ export class ResumeController {
 
   public static async deleteResume(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const deleted = await ResumeService.deleteResume(req.params.id, userId);
       if (!deleted) {
         res.status(404).json({ status: 'error', message: 'Resume not found.' });
@@ -102,7 +101,7 @@ export class ResumeController {
 
   public static async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const profile = await ResumeService.getProfile(userId);
       if (!profile) {
         res.status(200).json({
@@ -120,7 +119,7 @@ export class ResumeController {
 
   public static async updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const verifiedProfile = await ResumeService.saveVerifiedProfile(userId, req.body);
       res.status(200).json({
         status: 'ok',
@@ -134,7 +133,7 @@ export class ResumeController {
 
   public static async getPreferences(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const profile = await ResumeService.getProfile(userId);
       res.status(200).json({
         status: 'ok',
@@ -147,7 +146,7 @@ export class ResumeController {
 
   public static async updatePreferences(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const updated = await ResumeService.updatePreferences(userId, req.body);
       res.status(200).json({
         status: 'ok',
@@ -161,7 +160,7 @@ export class ResumeController {
 
   public static async getVersions(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const versions = await ResumeService.getVersions(userId);
       res.status(200).json({ status: 'ok', versions });
     } catch (err) {

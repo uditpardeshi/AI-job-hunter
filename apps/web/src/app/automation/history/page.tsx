@@ -17,6 +17,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { AutomationRun, AutomationEvent } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
+import Navbar from '@/components/Navbar';
 
 export default function AutomationHistoryPage() {
   const [runs, setRuns] = useState<AutomationRun[]>([]);
@@ -29,7 +31,13 @@ export default function AutomationHistoryPage() {
   const fetchRuns = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/automation/runs?limit=30`, { cache: 'no-store' });
+      const res = await authFetch(`${apiUrl}/api/automation/runs?limit=30`, { cache: 'no-store' });
+      if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+          return;
+        }
+      }
       const json = await res.json();
       if (json.success) {
         setRuns(json.data || []);
@@ -48,7 +56,7 @@ export default function AutomationHistoryPage() {
     setEventsLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/automation/events?runId=${runId}&limit=100`, { cache: 'no-store' });
+      const res = await authFetch(`${apiUrl}/api/automation/events?runId=${runId}&limit=100`, { cache: 'no-store' });
       const json = await res.json();
       if (json.success) {
         setEvents(json.data || []);
@@ -86,9 +94,11 @@ export default function AutomationHistoryPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-10 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      <Navbar />
+      <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl w-full mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Link
             href="/automation"
@@ -256,6 +266,7 @@ export default function AutomationHistoryPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

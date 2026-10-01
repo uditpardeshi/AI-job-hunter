@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { EmailService } from '../services/emailService';
 import { GmailClient } from '../services/gmailClient';
-import { DEFAULT_USER_ID } from '../db/migrations';
 import { logger } from '../utils/logger';
 
 // Ephemeral in-memory CSRF state cache (valid for 15 minutes)
@@ -11,7 +10,7 @@ const oauthStateStore = new Map<string, { userId: string; createdAt: number }>()
 export class GmailController {
   public static async getConnection(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const connection = await EmailService.getGmailConnection(userId);
 
       res.status(200).json({
@@ -25,7 +24,7 @@ export class GmailController {
 
   public static async getConnectUrl(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const state = crypto.randomBytes(24).toString('hex');
 
       // Store CSRF state
@@ -77,19 +76,16 @@ export class GmailController {
 
       // Verify CSRF state
       const stored = oauthStateStore.get(state);
-      const isMock = GmailClient.isMockMode() || code.startsWith('mock_auth_code');
-
-      let userId = DEFAULT_USER_ID;
-      if (stored) {
-        userId = stored.userId;
-        oauthStateStore.delete(state);
-      } else if (!isMock) {
+      if (!stored) {
         res.status(403).json({
           success: false,
           error: 'Invalid or expired OAuth state parameter',
         });
         return;
       }
+
+      const userId = stored.userId;
+      oauthStateStore.delete(state);
 
       // Exchange authorization code for tokens
       const tokens = await GmailClient.exchangeCodeForTokens(code);
@@ -126,7 +122,7 @@ export class GmailController {
 
   public static async disconnect(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       await EmailService.disconnectGmail(userId);
 
       res.status(200).json({
@@ -140,7 +136,7 @@ export class GmailController {
 
   public static async sync(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const connection = await EmailService.getGmailConnection(userId);
 
       if (!connection) {

@@ -167,7 +167,12 @@ class JobAnalyzer:
 
     async def analyze_with_ollama(self, title: str, description: str, model_name: Optional[str] = None) -> Tuple[JobAnalysisData, str]:
         """Send job details to Ollama for structured analysis."""
-        chosen_model = model_name or await self.get_available_model() or "llama3.2"
+        chosen_model = model_name or await self.get_available_model()
+        if not chosen_model:
+            logger.info("No Ollama model available; using factual fallback extractor directly.")
+            data = self.heuristic_extraction(title, description)
+            return data, "heuristic-fallback"
+
         prompt = build_job_prompt(title, description)
 
         payload = {
@@ -182,7 +187,7 @@ class JobAnalyzer:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=settings.ollama_timeout_seconds) as client:
                 res = await client.post(f"{self.ollama_url}/api/generate", json=payload)
                 if res.status_code == 200:
                     raw_response = res.json().get("response", "")

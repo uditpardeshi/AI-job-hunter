@@ -33,8 +33,9 @@ export class AutomationService {
         auto_shortlisting_enabled, auto_tailoring_enabled, auto_cover_letter_enabled,
         application_approval_required, email_approval_required,
         browser_automation_enabled, daily_application_limit, hourly_application_limit,
-        minimum_match_score, minimum_skill_match, kill_switch_active
-      ) VALUES ($1, false, 'ASSISTED', 6, true, true, true, true, true, false, 5, 2, 80, 70, false)
+        minimum_match_score, minimum_skill_match, kill_switch_active,
+        email_sync_enabled, automatic_email_generation, automatic_email_sending
+      ) VALUES ($1, false, 'ASSISTED', 6, true, true, true, true, true, false, 5, 2, 80, 70, false, false, true, false)
       RETURNING *`,
       [userId]
     );
@@ -66,6 +67,9 @@ export class AutomationService {
       minimumMatchScore: updates.minimumMatchScore !== undefined ? updates.minimumMatchScore : current.minimumMatchScore,
       minimumSkillMatch: updates.minimumSkillMatch !== undefined ? updates.minimumSkillMatch : current.minimumSkillMatch,
       killSwitchActive: updates.killSwitchActive !== undefined ? updates.killSwitchActive : current.killSwitchActive,
+      emailSyncEnabled: updates.emailSyncEnabled !== undefined ? updates.emailSyncEnabled : (current.emailSyncEnabled ?? false),
+      automaticEmailGeneration: updates.automaticEmailGeneration !== undefined ? updates.automaticEmailGeneration : (current.automaticEmailGeneration ?? true),
+      automaticEmailSending: updates.automaticEmailSending !== undefined ? updates.automaticEmailSending : (current.automaticEmailSending ?? false),
     };
 
     const res = await pool.query(
@@ -84,8 +88,11 @@ export class AutomationService {
         minimum_match_score = $12,
         minimum_skill_match = $13,
         kill_switch_active = $14,
+        email_sync_enabled = $15,
+        automatic_email_generation = $16,
+        automatic_email_sending = $17,
         updated_at = NOW()
-      WHERE user_id = $15
+      WHERE user_id = $18
       RETURNING *`,
       [
         merged.automationEnabled,
@@ -102,6 +109,9 @@ export class AutomationService {
         merged.minimumMatchScore,
         merged.minimumSkillMatch,
         merged.killSwitchActive,
+        merged.emailSyncEnabled,
+        merged.automaticEmailGeneration,
+        merged.automaticEmailSending,
         userId,
       ]
     );
@@ -618,6 +628,9 @@ export class AutomationService {
       minimumMatchScore: row.minimum_match_score,
       minimumSkillMatch: row.minimum_skill_match,
       killSwitchActive: row.kill_switch_active,
+      emailSyncEnabled: row.email_sync_enabled ?? false,
+      automaticEmailGeneration: row.automatic_email_generation ?? true,
+      automaticEmailSending: row.automatic_email_sending ?? false,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

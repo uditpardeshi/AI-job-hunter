@@ -14,4 +14,6 @@ export const config = {
   aiServiceUrl: process.env.AI_SERVICE_URL || 'http://localhost:8000',
   automationEnv: process.env.AUTOMATION_ENV || 'development',
   enableApplicationAutomation: process.env.ENABLE_APPLICATION_AUTOMATION === 'true',
+  encryptionSecret: process.env.ENCRYPTION_SECRET || '',
+  jwtSecret: process.env.JWT_SECRET || 'f3a8b271d4400e9987a05c6d3215f6ee81297594d07936a28e815617a94bc102',
 };

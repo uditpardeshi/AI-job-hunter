@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { EmailMessage, EmailCategory, ApplicationStatus } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
 
 const CATEGORY_TABS: Array<{ id: EmailCategory | ''; label: string }> = [
   { id: '', label: 'All Messages' },
@@ -62,7 +63,13 @@ function EmailsContent() {
       if (requiresResponseOnly) params.append('requiresResponse', 'true');
       params.append('limit', '50');
 
-      const res = await fetch(`${apiUrl}/api/emails?${params.toString()}`, { cache: 'no-store' });
+      const res = await authFetch(`${apiUrl}/api/emails?${params.toString()}`, { cache: 'no-store' });
+      if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+          return;
+        }
+      }
       if (res.ok) {
         const json = await res.json();
         setEmails(json.data || []);
@@ -83,10 +90,10 @@ function EmailsContent() {
     setIsSyncing(true);
     setNotification(null);
     try {
-      const res = await fetch(`${apiUrl}/api/integrations/gmail/sync`, { method: 'POST' });
+      const res = await authFetch(`${apiUrl}/api/integrations/gmail/sync`, { method: 'POST' });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || 'Sync failed');
+        throw new Error(err.error || err.message || 'Sync failed');
       }
       const json = await res.json();
       setNotification({
@@ -103,9 +110,8 @@ function EmailsContent() {
 
   const handleSuggestionAction = async (emailId: string, action: 'accept' | 'ignore') => {
     try {
-      const res = await fetch(`${apiUrl}/api/emails/${emailId}/suggestion`, {
+      const res = await authFetch(`${apiUrl}/api/emails/${emailId}/suggestion`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
       if (res.ok) {

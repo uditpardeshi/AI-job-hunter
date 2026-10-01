@@ -181,7 +181,18 @@ class TailorService:
         user_instructions: str = "",
         model_name: Optional[str] = None
     ) -> Tuple[Dict[str, Any], str]:
-        chosen_model = model_name or await self.get_available_model() or "llama3.2"
+        chosen_model = model_name or await self.get_available_model()
+        if not chosen_model:
+            logger.info("No Ollama model available; using factual fallback directly.")
+            data = self.heuristic_tailor(
+                candidate_profile=candidate_profile,
+                job_title=job_title,
+                job_company=job_company,
+                required_skills=required_skills,
+                preferred_skills=preferred_skills
+            )
+            return data, "heuristic-fallback"
+
         prompt = build_tailoring_prompt(
             candidate_profile_json=json.dumps(candidate_profile, indent=2),
             job_title=job_title,
@@ -204,7 +215,7 @@ class TailorService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=settings.ollama_timeout_seconds) as client:
                 res = await client.post(f"{self.ollama_url}/api/generate", json=payload)
                 if res.status_code == 200:
                     raw_resp = res.json().get("response", "")
@@ -277,7 +288,17 @@ class TailorService:
         user_instructions: str = "",
         model_name: Optional[str] = None
     ) -> Tuple[Dict[str, Any], str]:
-        chosen_model = model_name or await self.get_available_model() or "llama3.2"
+        chosen_model = model_name or await self.get_available_model()
+        if not chosen_model:
+            logger.info("No Ollama model available; using factual fallback for cover letter directly.")
+            data = self.heuristic_cover_letter(
+                candidate_profile=candidate_profile,
+                job_title=job_title,
+                job_company=job_company,
+                tone=tone
+            )
+            return data, "heuristic-fallback"
+
         prompt = build_cover_letter_prompt(
             candidate_profile_json=json.dumps(candidate_profile, indent=2),
             job_title=job_title,
@@ -299,7 +320,7 @@ class TailorService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=settings.ollama_timeout_seconds) as client:
                 res = await client.post(f"{self.ollama_url}/api/generate", json=payload)
                 if res.status_code == 200:
                     raw_resp = res.json().get("response", "")

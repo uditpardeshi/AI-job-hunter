@@ -3,7 +3,6 @@ import path from 'path';
 import { pool } from '../db';
 import { config } from '../config';
 import { logger } from '../utils/logger';
-import { DEFAULT_USER_ID } from '../db/migrations';
 import {
   CandidateProfile,
   CandidatePreferences,
@@ -27,7 +26,7 @@ export class ResumeService {
       RETURNING id, user_id, original_filename, file_type, file_size, processing_status, error_message, created_at, updated_at;
     `;
     const res = await pool.query(query, [
-      userId || DEFAULT_USER_ID,
+      userId,
       file.originalname,
       file.path,
       ext,
@@ -51,7 +50,7 @@ export class ResumeService {
   /**
    * List all resumes for a user.
    */
-  public static async listResumes(userId: string = DEFAULT_USER_ID): Promise<ResumeMetadata[]> {
+  public static async listResumes(userId: string): Promise<ResumeMetadata[]> {
     const query = `
       SELECT id, user_id, original_filename, file_type, file_size, processing_status, error_message, created_at, updated_at
       FROM resumes
@@ -75,7 +74,7 @@ export class ResumeService {
   /**
    * Get single resume details.
    */
-  public static async getResume(id: string, userId: string = DEFAULT_USER_ID): Promise<any | null> {
+  public static async getResume(id: string, userId: string): Promise<any | null> {
     const query = `
       SELECT id, user_id, original_filename, storage_path, file_type, file_size, extracted_text, processing_status, error_message, created_at, updated_at
       FROM resumes
@@ -109,7 +108,7 @@ export class ResumeService {
   /**
    * Process resume through text extraction and AI parsing.
    */
-  public static async processResume(resumeId: string, userId: string = DEFAULT_USER_ID): Promise<CandidateProfile> {
+  public static async processResume(resumeId: string, userId: string): Promise<CandidateProfile> {
     const resume = await this.getResume(resumeId, userId);
     if (!resume) {
       throw new Error(`Resume not found with ID: ${resumeId}`);
@@ -257,7 +256,7 @@ export class ResumeService {
   /**
    * Get candidate profile for user.
    */
-  public static async getProfile(userId: string = DEFAULT_USER_ID): Promise<CandidateProfile | null> {
+  public static async getProfile(userId: string): Promise<CandidateProfile | null> {
     const res = await pool.query(
       'SELECT * FROM candidate_profiles WHERE user_id = $1;',
       [userId]
@@ -294,7 +293,7 @@ export class ResumeService {
    * User explicitly saves/verifies their profile.
    */
   public static async saveVerifiedProfile(
-    userId: string = DEFAULT_USER_ID,
+    userId: string,
     profileData: Partial<CandidateProfile>
   ): Promise<CandidateProfile> {
     const current = await this.getProfile(userId);
@@ -380,7 +379,7 @@ export class ResumeService {
    * Update preferences only.
    */
   public static async updatePreferences(
-    userId: string = DEFAULT_USER_ID,
+    userId: string,
     preferences: CandidatePreferences
   ): Promise<CandidatePreferences> {
     await pool.query(
@@ -395,7 +394,7 @@ export class ResumeService {
   /**
    * Get version history.
    */
-  public static async getVersions(userId: string = DEFAULT_USER_ID): Promise<ResumeVersion[]> {
+  public static async getVersions(userId: string): Promise<ResumeVersion[]> {
     const res = await pool.query(
       `SELECT id, user_id, resume_id, version_number, profile_data, created_at
        FROM resume_versions
@@ -416,7 +415,7 @@ export class ResumeService {
   /**
    * Delete resume record and stored file.
    */
-  public static async deleteResume(id: string, userId: string = DEFAULT_USER_ID): Promise<boolean> {
+  public static async deleteResume(id: string, userId: string): Promise<boolean> {
     const resume = await this.getResume(id, userId);
     if (!resume) return false;
 

@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { Job, JobMatchResult, TailoredResume, CoverLetter, Application, ApplicationStatus } from '@ai-job-hunter/shared';
 import Navbar from '@/components/Navbar';
+import { authFetch } from '@/lib/api';
 
 export default function JobDetailPage() {
   const params = useParams();
@@ -58,7 +59,7 @@ export default function JobDetailPage() {
     setIsLoading(true);
     try {
       // Fetch Job Details
-      const jobRes = await fetch(`${apiUrl}/api/jobs/${id}`, { cache: 'no-store' });
+      const jobRes = await authFetch(`${apiUrl}/api/jobs/${id}`, { cache: 'no-store' });
       if (!jobRes.ok) {
         throw new Error(`Job not found (HTTP ${jobRes.status})`);
       }
@@ -66,7 +67,7 @@ export default function JobDetailPage() {
       setJob(jobData.job);
 
       // Fetch Match Result
-      const matchRes = await fetch(`${apiUrl}/api/jobs/${id}/match`, { cache: 'no-store' });
+      const matchRes = await authFetch(`${apiUrl}/api/jobs/${id}/match`, { cache: 'no-store' });
       if (matchRes.ok) {
         const matchData = await matchRes.json();
         setMatchResult(matchData.data);
@@ -74,9 +75,9 @@ export default function JobDetailPage() {
 
       // Fetch Step 5 Tailored Resumes & Cover Letters
       const [resumesRes, lettersRes, appRes] = await Promise.all([
-        fetch(`${apiUrl}/api/jobs/${id}/tailored-resumes`, { cache: 'no-store' }),
-        fetch(`${apiUrl}/api/jobs/${id}/cover-letters`, { cache: 'no-store' }),
-        fetch(`${apiUrl}/api/applications?jobId=${id}`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/jobs/${id}/tailored-resumes`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/jobs/${id}/cover-letters`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/applications?jobId=${id}`, { cache: 'no-store' }),
       ]);
 
       if (resumesRes.ok) {
@@ -113,9 +114,8 @@ export default function JobDetailPage() {
     setActionError(null);
     try {
       if (application) {
-        const res = await fetch(`${apiUrl}/api/applications/${application.id}/status`, {
+        const res = await authFetch(`${apiUrl}/api/applications/${application.id}/status`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status }),
         });
         if (!res.ok) {
@@ -125,9 +125,8 @@ export default function JobDetailPage() {
         const data = await res.json();
         setApplication(data.data);
       } else {
-        const res = await fetch(`${apiUrl}/api/applications`, {
+        const res = await authFetch(`${apiUrl}/api/applications`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ jobId: id, status }),
         });
         if (!res.ok) {
@@ -148,7 +147,7 @@ export default function JobDetailPage() {
     if (!id) return;
     setIsMatching(true);
     try {
-      const res = await fetch(`${apiUrl}/api/jobs/${id}/match`, {
+      const res = await authFetch(`${apiUrl}/api/jobs/${id}/match`, {
         method: 'POST',
       });
       if (res.ok) {
@@ -167,9 +166,8 @@ export default function JobDetailPage() {
     setIsTailoring(true);
     setActionError(null);
     try {
-      const res = await fetch(`${apiUrl}/api/jobs/${id}/tailor-resume`, {
+      const res = await authFetch(`${apiUrl}/api/jobs/${id}/tailor-resume`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
       const data = await res.json();
@@ -189,9 +187,8 @@ export default function JobDetailPage() {
     setIsGeneratingCoverLetter(true);
     setActionError(null);
     try {
-      const res = await fetch(`${apiUrl}/api/jobs/${id}/cover-letter`, {
+      const res = await authFetch(`${apiUrl}/api/jobs/${id}/cover-letter`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tone: 'professional' }),
       });
       const data = await res.json();

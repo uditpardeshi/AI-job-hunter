@@ -1,16 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { pool } from '../db';
-import { DEFAULT_USER_ID } from '../db/migrations';
 import { MatchingService } from '../services/matching/matchingService';
 import { CandidateProfile } from '@ai-job-hunter/shared';
 
-async function getCandidateProfile(userId: string = DEFAULT_USER_ID, candidateId?: string): Promise<CandidateProfile> {
-  let query = `SELECT * FROM candidate_profiles WHERE user_id = $1`;
+async function getCandidateProfile(userId: string, candidateId?: string): Promise<CandidateProfile> {
+  let query = `SELECT * FROM candidate_profiles WHERE user_id = $1 ORDER BY updated_at DESC LIMIT 1`;
   let params: any[] = [userId];
 
   if (candidateId) {
-    query = `SELECT * FROM candidate_profiles WHERE id = $1`;
-    params = [candidateId];
+    query = `SELECT * FROM candidate_profiles WHERE id = $1 AND user_id = $2`;
+    params = [candidateId, userId];
   }
 
   const res = await pool.query(query, params);
@@ -85,9 +84,15 @@ export class MatchController {
    */
   public static async matchJob(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
       const jobId = req.params.id;
       const candidateId = req.body?.candidateId || (req.query?.candidateId as string);
-      const profile = await getCandidateProfile(DEFAULT_USER_ID, candidateId);
+      const profile = await getCandidateProfile(userId, candidateId);
 
       const matchResult = await MatchingService.matchCandidateWithJob(profile, jobId);
       res.status(200).json({
@@ -105,9 +110,15 @@ export class MatchController {
    */
   public static async getJobMatch(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
       const jobId = req.params.id;
       const candidateId = req.query?.candidateId as string;
-      const profile = await getCandidateProfile(DEFAULT_USER_ID, candidateId);
+      const profile = await getCandidateProfile(userId, candidateId);
 
       const matchResult = await MatchingService.getMatchResult(jobId, profile.id!);
       if (!matchResult) {
@@ -132,8 +143,14 @@ export class MatchController {
    */
   public static async recalculateMatches(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
       const candidateId = req.body?.candidateId || (req.query?.candidateId as string);
-      const profile = await getCandidateProfile(DEFAULT_USER_ID, candidateId);
+      const profile = await getCandidateProfile(userId, candidateId);
 
       const result = await MatchingService.recalculateAllMatches(profile.id!);
       res.status(200).json({
@@ -151,8 +168,14 @@ export class MatchController {
    */
   public static async listMatches(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
       const candidateId = req.query?.candidateId as string;
-      const profile = await getCandidateProfile(DEFAULT_USER_ID, candidateId);
+      const profile = await getCandidateProfile(userId, candidateId);
       const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
 
       const matches = await MatchingService.listMatchesForCandidate(profile.id!, limit);
@@ -170,8 +193,21 @@ export class MatchController {
    */
   public static async getMatchById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'Authentication required' });
+        return;
+      }
+
       const matchId = req.params.id;
-      const matchRes = await pool.query(`SELECT * FROM job_matches WHERE id = $1`, [matchId]);
+      const matchRes = await pool.query(
+        `SELECT m.*, j.title AS job_title, j.company AS job_company
+         FROM job_matches m
+         JOIN jobs j ON j.id = m.job_id
+         JOIN candidate_profiles cp ON cp.id = m.candidate_id
+         WHERE m.id = $1 AND cp.user_id = $2`,
+        [matchId, userId]
+      );
       if (matchRes.rows.length === 0) {
         res.status(404).json({
           success: false,
@@ -187,6 +223,8 @@ export class MatchController {
           id: row.id,
           jobId: row.job_id,
           candidateId: row.candidate_id,
+          jobTitle: row.job_title,
+          company: row.job_company,
           matchScore: row.match_score,
           components: row.components,
           matchedSkills: row.matched_skills || [],

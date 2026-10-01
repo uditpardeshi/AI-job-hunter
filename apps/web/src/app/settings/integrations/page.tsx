@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { GmailConnection } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
 
 function IntegrationsContent() {
   const searchParams = useSearchParams();
@@ -33,7 +34,13 @@ function IntegrationsContent() {
   const fetchConnection = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${apiUrl}/api/integrations/gmail`, { cache: 'no-store' });
+      const res = await authFetch(`${apiUrl}/api/integrations/gmail`, { cache: 'no-store' });
+      if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+          return;
+        }
+      }
       if (res.ok) {
         const json = await res.json();
         setConnection(json.data);
@@ -56,7 +63,7 @@ function IntegrationsContent() {
     setIsConnecting(true);
     setNotification(null);
     try {
-      const res = await fetch(`${apiUrl}/api/integrations/gmail/connect`, { cache: 'no-store' });
+      const res = await authFetch(`${apiUrl}/api/integrations/gmail/connect`, { cache: 'no-store' });
       const json = await res.json();
       if (json.data && json.data.authUrl) {
         // If mock mode, navigate or fetch callback
@@ -81,7 +88,7 @@ function IntegrationsContent() {
     setIsDisconnecting(true);
     setNotification(null);
     try {
-      const res = await fetch(`${apiUrl}/api/integrations/gmail/disconnect`, { method: 'POST' });
+      const res = await authFetch(`${apiUrl}/api/integrations/gmail/disconnect`, { method: 'POST' });
       if (res.ok) {
         setConnection(null);
         setNotification({ type: 'success', message: 'Gmail disconnected successfully' });
@@ -99,7 +106,7 @@ function IntegrationsContent() {
     setIsSyncing(true);
     setNotification(null);
     try {
-      const res = await fetch(`${apiUrl}/api/integrations/gmail/sync`, { method: 'POST' });
+      const res = await authFetch(`${apiUrl}/api/integrations/gmail/sync`, { method: 'POST' });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || 'Sync failed');

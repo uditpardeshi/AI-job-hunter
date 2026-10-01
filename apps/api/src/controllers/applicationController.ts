@@ -2,12 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import { ApplicationService } from '../services/applicationService';
 import { ApplicationStatus } from '@ai-job-hunter/shared';
 
-const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
-
 export class ApplicationController {
   public static async createApplication(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const {
         jobId,
         status,
@@ -55,7 +53,7 @@ export class ApplicationController {
 
   public static async listApplications(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const {
         jobId,
         status,
@@ -100,7 +98,7 @@ export class ApplicationController {
 
   public static async getApplication(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const id = req.params.id;
 
       const application = await ApplicationService.getApplicationById(id, userId);
@@ -120,7 +118,7 @@ export class ApplicationController {
 
   public static async updateApplication(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const id = req.params.id;
       const { tailoredResumeId, coverLetterId, resumeId, externalApplicationUrl, notes } = req.body || {};
 
@@ -144,7 +142,7 @@ export class ApplicationController {
 
   public static async updateStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const id = req.params.id;
       const { status, reason } = req.body || {};
 
@@ -167,7 +165,7 @@ export class ApplicationController {
 
   public static async updateFollowUp(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const id = req.params.id;
       const { nextFollowUpAt, isCompleted } = req.body || {};
 
@@ -190,7 +188,7 @@ export class ApplicationController {
 
   public static async addNote(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const id = req.params.id;
       const { noteText, note } = req.body || {};
       const content = noteText || note;
@@ -214,7 +212,7 @@ export class ApplicationController {
 
   public static async getTimeline(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const id = req.params.id;
 
       const events = await ApplicationService.getTimeline(id, userId);
@@ -230,7 +228,7 @@ export class ApplicationController {
 
   public static async deleteApplication(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const id = req.params.id;
 
       const deleted = await ApplicationService.deleteApplication(id, userId);

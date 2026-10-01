@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import { ResumeController } from '../controllers/resumeController';
 import { resumeUploadMiddleware } from '../services/storageService';
+import { requireAuth } from '../middleware/authMiddleware';
 
 export const resumeRouter = Router();
+
+// All resume and profile routes strictly require authentication
+resumeRouter.use(requireAuth);
 
 // Resume upload and processing routes
 resumeRouter.post('/resumes', resumeUploadMiddleware.single('resume'), ResumeController.uploadResume);

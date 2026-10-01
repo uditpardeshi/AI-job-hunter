@@ -386,6 +386,8 @@ export class MatchingService {
       id: row.id,
       jobId: row.job_id,
       candidateId: row.candidate_id,
+      jobTitle: jobRow.title,
+      company: jobRow.company,
       matchScore: row.match_score,
       components,
       matchedSkills: row.matched_skills || [],
@@ -460,7 +462,10 @@ export class MatchingService {
    */
   public static async getMatchResult(jobId: string, candidateId: string): Promise<JobMatchResult | null> {
     const res = await pool.query(
-      `SELECT * FROM job_matches WHERE job_id = $1 AND candidate_id = $2`,
+      `SELECT m.*, j.title AS job_title, j.company AS job_company
+       FROM job_matches m
+       JOIN jobs j ON j.id = m.job_id
+       WHERE m.job_id = $1 AND m.candidate_id = $2`,
       [jobId, candidateId]
     );
 
@@ -473,6 +478,8 @@ export class MatchingService {
       id: row.id,
       jobId: row.job_id,
       candidateId: row.candidate_id,
+      jobTitle: row.job_title,
+      company: row.job_company,
       matchScore: row.match_score,
       components: row.components,
       matchedSkills: row.matched_skills || [],
@@ -493,7 +500,12 @@ export class MatchingService {
    */
   public static async listMatchesForCandidate(candidateId: string, limit: number = 50): Promise<JobMatchResult[]> {
     const res = await pool.query(
-      `SELECT * FROM job_matches WHERE candidate_id = $1 ORDER BY match_score DESC LIMIT $2`,
+      `SELECT m.*, j.title AS job_title, j.company AS job_company
+       FROM job_matches m
+       JOIN jobs j ON j.id = m.job_id
+       WHERE m.candidate_id = $1
+       ORDER BY m.match_score DESC
+       LIMIT $2`,
       [candidateId, limit]
     );
 
@@ -501,6 +513,8 @@ export class MatchingService {
       id: row.id,
       jobId: row.job_id,
       candidateId: row.candidate_id,
+      jobTitle: row.job_title,
+      company: row.job_company,
       matchScore: row.match_score,
       components: row.components,
       matchedSkills: row.matched_skills || [],

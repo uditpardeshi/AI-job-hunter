@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Job, RemoteType, EmploymentType, ApplicationStatus } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
 
 type EnrichedJob = Job & {
   matchScore?: number | null;
@@ -61,7 +62,7 @@ export default function JobsPage() {
 
   const fetchApplications = async () => {
     try {
-      const res = await fetch(`${apiUrl}/api/applications?limit=100`, { cache: 'no-store' });
+      const res = await authFetch(`${apiUrl}/api/applications?limit=100`, { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
         const map: Record<string, { id: string; status: ApplicationStatus }> = {};
@@ -90,7 +91,7 @@ export default function JobsPage() {
       if (employmentType) params.append('employmentType', employmentType);
       if (source) params.append('source', source);
 
-      const res = await fetch(`${apiUrl}/api/jobs?${params.toString()}`, {
+      const res = await authFetch(`${apiUrl}/api/jobs?${params.toString()}`, {
         cache: 'no-store',
       });
       if (res.ok) {
@@ -119,9 +120,8 @@ export default function JobsPage() {
 
   const handleQuickSave = async (jobId: string, status: ApplicationStatus) => {
     try {
-      const res = await fetch(`${apiUrl}/api/applications`, {
+      const res = await authFetch(`${apiUrl}/api/applications`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId, status }),
       });
       const json = await res.json();
@@ -131,7 +131,7 @@ export default function JobsPage() {
           [jobId]: { id: json.data.id, status: json.data.status },
         }));
       } else {
-        alert(json.error || 'Failed to save job');
+        alert(json.error || json.message || 'Failed to save job');
       }
     } catch (err: any) {
       alert(err.message);
@@ -142,7 +142,7 @@ export default function JobsPage() {
     setIsSyncing(true);
     setSyncMessage(null);
     try {
-      const res = await fetch(`${apiUrl}/api/jobs/sync`, {
+      const res = await authFetch(`${apiUrl}/api/jobs/sync`, {
         method: 'POST',
       });
       const data = await res.json();
@@ -150,7 +150,7 @@ export default function JobsPage() {
         setSyncMessage(`Synced ${data.totalFound || 0} jobs across all active sources.`);
         await fetchJobs();
       } else {
-        setSyncMessage(`Sync error: ${data.message || 'Failed'}`);
+        setSyncMessage(`Sync error: ${data.message || data.error || 'Failed'}`);
       }
     } catch (err) {
       setSyncMessage('Failed to trigger job collection.');
@@ -163,7 +163,7 @@ export default function JobsPage() {
     setIsRecalculating(true);
     setRecalcMessage(null);
     try {
-      const res = await fetch(`${apiUrl}/api/matches/recalculate`, {
+      const res = await authFetch(`${apiUrl}/api/matches/recalculate`, {
         method: 'POST',
       });
       const data = await res.json();
@@ -171,7 +171,7 @@ export default function JobsPage() {
         setRecalcMessage(`Matches updated for ${data.data?.totalMatched || 0} active jobs.`);
         await fetchJobs();
       } else {
-        setRecalcMessage(`Recalculation error: ${data.error || 'Failed'}`);
+        setRecalcMessage(`Recalculation error: ${data.error || data.message || 'Failed'}`);
       }
     } catch (err) {
       setRecalcMessage('Failed to trigger match recalculation.');

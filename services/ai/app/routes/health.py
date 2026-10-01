@@ -6,7 +6,12 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse)
 async def health():
-    return HealthResponse(status="ok", service="ai")
+    is_connected = await ollama_service.check_health()
+    return HealthResponse(
+        status="ok" if is_connected else "degraded",
+        service="ai",
+        ollama_connected=is_connected
+    )
 
 @router.get("/test", response_model=TestResponse)
 async def test():

@@ -59,19 +59,30 @@ export class HimalayasJobSource implements IJobSourceConnector {
       logger.info(`Himalayas returned ${items.length} job postings.`);
 
       return items.slice(0, 25).map((item: any) => {
-        // Himalayas API uses 'guid' (a full URL) as the only stable job identifier.
-        // There are no 'id' or 'slug' fields in the API response.
-        // We use guid directly as sourceJobId to ensure deterministic deduplication.
-        const jobUrl = item.applicationLink || item.guid || `https://himalayas.app/companies/${item.companySlug}/jobs`;
+        const title = item.title || 'Remote Engineer';
+        const company = item.companyName || 'Himalayas Employer';
+        const jobUrl = item.applicationLink || item.guid || (item.companySlug && item.slug ? `https://himalayas.app/companies/${item.companySlug}/jobs/${item.slug}` : 'https://himalayas.app');
+        
+        // Himalayas uses 'guid' as its official unique job identifier
         const sourceJobId = item.guid
-          ? item.guid
-          : this.deterministicId(jobUrl, item.title || '', item.companyName || '');
+          ? String(item.guid)
+          : this.deterministicId(jobUrl, title, company);
+
+        let postedAtIso = new Date().toISOString();
+        if (item.pubDate) {
+          // pubDate is unix epoch seconds or ISO string
+          const ts = typeof item.pubDate === 'number' ? item.pubDate * 1000 : Date.parse(item.pubDate);
+          if (!isNaN(ts)) postedAtIso = new Date(ts).toISOString();
+        } else if (item.createdAt) {
+          const ts = Date.parse(item.createdAt);
+          if (!isNaN(ts)) postedAtIso = new Date(ts).toISOString();
+        }
 
         return {
           sourceJobId,
-          title: item.title || 'Remote Engineer',
-          company: item.companyName || 'Himalayas Employer',
-          companyUrl: undefined,
+          title,
+          company,
+          companyUrl: item.companyWebsite || undefined,
           jobUrl,
           location: 'Remote',
           remoteType: 'remote',
@@ -81,7 +92,7 @@ export class HimalayasJobSource implements IJobSourceConnector {
           salaryMax: item.maxSalary ? Number(item.maxSalary) : undefined,
           salaryCurrency: item.currency || 'USD',
           skills: Array.isArray(item.categories) ? item.categories : [],
-          postedAt: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+          postedAt: postedAtIso,
           rawData: item,
         };
       });
@@ -92,11 +103,6 @@ export class HimalayasJobSource implements IJobSourceConnector {
     }
   }
 
-  /**
-   * Deterministic job ID using SHA-256 of stable normalized fields.
-   * Used only when the source provides no stable primary identifier.
-   * Same inputs always produce the same output — never uses randomness.
-   */
   private deterministicId(url: string, title: string, company: string): string {
     const normalized = `${url.trim().toLowerCase()}|${title.trim().toLowerCase()}|${company.trim().toLowerCase()}`;
     return `himalayas-${crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 32)}`;

@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     host: str = os.getenv("HOST", "0.0.0.0")
     port: int = int(os.getenv("AI_PORT", "8000"))
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+    ollama_timeout_seconds: float = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "15.0"))
 
     class Config:
         env_file = ".env"

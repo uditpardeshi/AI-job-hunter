@@ -9,6 +9,7 @@ import { MatchingService } from '../services/matching/matchingService';
 import { AutomationService } from '../services/automationService';
 import { ApplicationService } from '../services/applicationService';
 import { ApplicationPreparationService } from '../services/applicationPreparationService';
+import { EmailService } from '../services/emailService';
 
 // Redis connection for BullMQ
 export const getQueueRedisConnection = () => {
@@ -27,11 +28,13 @@ export class QueueManager {
   public static materialQueue = new Queue('material-generation', { connection: this.redisConn });
   public static preparationQueue = new Queue('application-preparation', { connection: this.redisConn });
   public static submissionQueue = new Queue('application-submission', { connection: this.redisConn });
+  public static emailSyncQueue = new Queue('email-sync', { connection: this.redisConn });
 
   private static workers: Worker[] = [];
+  private static schedulerTimer: NodeJS.Timeout | null = null;
 
   /**
-   * Initialize all queue workers
+   * Initialize all queue workers and start scheduler
    */
   public static initWorkers(): void {
     logger.info('Initializing BullMQ automation workers...');
@@ -52,12 +55,127 @@ export class QueueManager {
     });
 
     this.workers.push(discoveryWorker);
+
+    // 2. Email Sync Worker
+    const emailSyncWorker = new Worker(
+      'email-sync',
+      async (job: BullJob) => {
+        const { userId } = job.data;
+        logger.info(`[EmailSyncWorker] Starting email sync for user ${userId}`);
+        const result = await EmailService.syncEmails(userId);
+        logger.info(`[EmailSyncWorker] Synced ${result.syncedCount} emails (${result.newCount} new) for user ${userId}`);
+        return result;
+      },
+      { connection: getQueueRedisConnection(), concurrency: 2 }
+    );
+
+    emailSyncWorker.on('failed', (job, err) => {
+      logger.error(`[EmailSyncWorker] Job ${job?.id} failed:`, err.message);
+    });
+
+    this.workers.push(emailSyncWorker);
+
+    // Start recurring automation scheduler
+    this.startScheduler();
   }
 
   /**
-   * Close all queues and workers cleanly
+   * Start recurring automation scheduler
+   */
+  public static startScheduler(intervalMs: number = 60000): void {
+    if (this.schedulerTimer) return;
+    logger.info(`Starting recurring automation scheduler (interval: ${intervalMs}ms)...`);
+
+    this.schedulerTimer = setInterval(async () => {
+      try {
+        await QueueManager.runScheduledCycles();
+      } catch (err: any) {
+        logger.error('Error during scheduled automation cycle:', err.message);
+      }
+    }, intervalMs);
+
+    // Initial check after 5 seconds
+    setTimeout(() => {
+      QueueManager.runScheduledCycles().catch((err: any) => {
+        logger.error('Error during initial scheduled automation cycle:', err.message);
+      });
+    }, 5000);
+  }
+
+  /**
+   * Stop recurring automation scheduler
+   */
+  public static stopScheduler(): void {
+    if (this.schedulerTimer) {
+      clearInterval(this.schedulerTimer);
+      this.schedulerTimer = null;
+      logger.info('Recurring automation scheduler stopped.');
+    }
+  }
+
+  /**
+   * Run scheduled automation cycles for eligible users
+   */
+  public static async runScheduledCycles(): Promise<void> {
+    const res = await pool.query(
+      `SELECT * FROM automation_settings WHERE automation_enabled = true AND kill_switch_active = false`
+    );
+
+    for (const settings of res.rows) {
+      try {
+        const userId = settings.user_id;
+        const syncFreqHours = settings.sync_frequency_hours || 6;
+        const cutoff = new Date(Date.now() - syncFreqHours * 3600 * 1000);
+
+        // Check if there is already an active run
+        const activeRun = await pool.query(
+          `SELECT id FROM automation_runs WHERE user_id = $1 AND status = 'RUNNING' LIMIT 1`,
+          [userId]
+        );
+        if (activeRun.rows.length > 0) {
+          continue;
+        }
+
+        // Check last scheduled run
+        const lastRun = await pool.query(
+          `SELECT created_at FROM automation_runs 
+           WHERE user_id = $1 AND metadata->>'trigger' = 'SCHEDULED' 
+           ORDER BY created_at DESC LIMIT 1`,
+          [userId]
+        );
+
+        if (lastRun.rows.length === 0 || new Date(lastRun.rows[0].created_at) <= cutoff) {
+          logger.info(`[Scheduler] Triggering scheduled automation cycle for user ${userId} (frequency: ${syncFreqHours}h)...`);
+          const run = await AutomationService.startAutomationRun(userId, 'JOB_DISCOVERY', { trigger: 'SCHEDULED' });
+          await this.discoveryQueue.add(
+            'discover-scheduled',
+            { userId, runId: run.id },
+            { removeOnComplete: 100, removeOnFail: 200 }
+          );
+        }
+
+        // Email Sync background check
+        if (settings.email_sync_enabled) {
+          const conn = await EmailService.getGmailConnection(userId);
+          if (conn && conn.isConnected) {
+            await this.emailSyncQueue.add(
+              'email-sync-scheduled',
+              { userId },
+              { removeOnComplete: 50, removeOnFail: 100 }
+            );
+          }
+        }
+      } catch (userErr: any) {
+        logger.error(`[Scheduler] Failed cycle check for user ${settings.user_id}:`, userErr.message);
+      }
+    }
+  }
+
+  /**
+   * Close all queues, workers, and scheduler cleanly
    */
   public static async closeAll(): Promise<void> {
+    this.stopScheduler();
     for (const worker of this.workers) {
       await worker.close();
     }
@@ -67,6 +185,7 @@ export class QueueManager {
     await this.materialQueue.close();
     await this.preparationQueue.close();
     await this.submissionQueue.close();
+    await this.emailSyncQueue.close();
     await this.redisConn.quit();
   }
 

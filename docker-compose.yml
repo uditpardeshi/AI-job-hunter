@@ -60,6 +60,7 @@ services:
     environment:
       HOST: "0.0.0.0"
       AI_PORT: "8000"
+      PYTHONPATH: "/app"
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       NODE_ENV: ${NODE_ENV:-development}
     ports:
@@ -90,6 +91,11 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       RESUME_STORAGE_PATH: /app/storage/resumes
       MAX_RESUME_SIZE_MB: ${MAX_RESUME_SIZE_MB:-10}
+      ENCRYPTION_SECRET: ${ENCRYPTION_SECRET:-b4c81e9f42589d978a3c8bf5e3cf75836a9e144a7f0170a4175782782ef52ce6}
+      JWT_SECRET: ${JWT_SECRET:-f3a8b271d4400e9987a05c6d3215f6ee81297594d07936a28e815617a94bc102}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4000/api/integrations/gmail/callback}
     ports:
       - "${API_PORT:-4000}:4000"
     volumes:

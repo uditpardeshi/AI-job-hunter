@@ -330,6 +330,8 @@ export interface JobMatchResult {
   id?: string;
   jobId: string;
   candidateId: string;
+  jobTitle?: string;
+  company?: string;
   matchScore: number;
   components: MatchComponents;
   matchedSkills: string[];
@@ -549,6 +551,9 @@ export interface DashboardStats {
   offers: number;
   rejected: number;
   withdrawn: number;
+  awaitingApproval: number;
+  recruiterEmails: number;
+  pendingEmailReplies: number;
 }
 
 export interface DashboardAnalytics {
@@ -745,6 +750,9 @@ export interface AutomationSettings {
   minimumMatchScore: number;
   minimumSkillMatch: number;
   killSwitchActive: boolean;
+  emailSyncEnabled?: boolean;
+  automaticEmailGeneration?: boolean;
+  automaticEmailSending?: boolean;
   createdAt: string;
   updatedAt: string;
 }

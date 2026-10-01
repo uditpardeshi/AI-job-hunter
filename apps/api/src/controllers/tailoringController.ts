@@ -1,18 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
-import { DEFAULT_USER_ID } from '../db/migrations';
 import { TailoringService } from '../services/tailoring/tailoringService';
 
 export class TailoringController {
   public static async tailorResume(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const jobId = req.params.jobId;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const { baseResumeId, instructions } = req.body || {};
 
       const result = await TailoringService.tailorResume(jobId, userId, baseResumeId, instructions);
       res.status(200).json({
         success: true,
-        data: result,
+        data: {
+          ...result,
+          summary: result.resumeData?.summary || null,
+          skills: result.resumeData?.skills || [],
+        },
         message: 'Resume tailored successfully',
       });
     } catch (err) {
@@ -23,12 +26,16 @@ export class TailoringController {
   public static async listTailoredResumes(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const jobId = req.params.jobId;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
 
       const list = await TailoringService.listTailoredResumesForJob(jobId, userId);
       res.status(200).json({
         success: true,
-        data: list,
+        data: list.map((item) => ({
+          ...item,
+          summary: item.resumeData?.summary || null,
+          skills: item.resumeData?.skills || [],
+        })),
       });
     } catch (err) {
       next(err);
@@ -38,14 +45,21 @@ export class TailoringController {
   public static async getTailoredResume(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
 
       const resume = await TailoringService.getTailoredResume(id, userId);
       if (!resume) {
         res.status(404).json({ success: false, error: 'Tailored resume not found.' });
         return;
       }
-      res.status(200).json({ success: true, data: resume });
+      res.status(200).json({
+        success: true,
+        data: {
+          ...resume,
+          summary: resume.resumeData?.summary || null,
+          skills: resume.resumeData?.skills || [],
+        },
+      });
     } catch (err) {
       next(err);
     }
@@ -54,7 +68,7 @@ export class TailoringController {
   public static async updateTailoredResume(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const { resumeData, instructions } = req.body || {};
 
       if (!resumeData) {
@@ -65,7 +79,11 @@ export class TailoringController {
       const updated = await TailoringService.updateTailoredResume(id, userId, resumeData, instructions);
       res.status(200).json({
         success: true,
-        data: updated,
+        data: {
+          ...updated,
+          summary: updated.resumeData?.summary || null,
+          skills: updated.resumeData?.skills || [],
+        },
         message: 'Tailored resume updated successfully',
       });
     } catch (err) {
@@ -76,7 +94,7 @@ export class TailoringController {
   public static async validateTailoredResume(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
 
       const resume = await TailoringService.getTailoredResume(id, userId);
       if (!resume) {
@@ -100,7 +118,7 @@ export class TailoringController {
   public static async getAtsAnalysis(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
 
       const resume = await TailoringService.getTailoredResume(id, userId);
       if (!resume) {
@@ -120,7 +138,7 @@ export class TailoringController {
   public static async exportResumePdf(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
 
       const pdfBuffer = await TailoringService.exportResumePdf(id, userId);
       res.setHeader('Content-Type', 'application/pdf');
@@ -134,7 +152,7 @@ export class TailoringController {
   public static async exportResumeDocx(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
 
       const docxBuffer = await TailoringService.exportResumeDocx(id, userId);
       res.setHeader(
@@ -154,7 +172,7 @@ export class TailoringController {
   public static async generateCoverLetter(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const jobId = req.params.jobId;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const { baseResumeId, tone, instructions } = req.body || {};
 
       const result = await TailoringService.generateCoverLetter(jobId, userId, baseResumeId, tone, instructions);
@@ -171,7 +189,7 @@ export class TailoringController {
   public static async listCoverLetters(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const jobId = req.params.jobId;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
 
       const list = await TailoringService.listCoverLettersForJob(jobId, userId);
       res.status(200).json({
@@ -186,7 +204,7 @@ export class TailoringController {
   public static async getCoverLetter(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
 
       const cl = await TailoringService.getCoverLetter(id, userId);
       if (!cl) {
@@ -202,7 +220,7 @@ export class TailoringController {
   public static async updateCoverLetter(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const { content, tone, instructions } = req.body || {};
 
       if (!content) {
@@ -224,7 +242,7 @@ export class TailoringController {
   public static async exportCoverLetterPdf(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
 
       const pdfBuffer = await TailoringService.exportCoverLetterPdf(id, userId);
       res.setHeader('Content-Type', 'application/pdf');
@@ -238,7 +256,7 @@ export class TailoringController {
   public static async exportCoverLetterDocx(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const id = req.params.id;
-      const userId = (req.headers['x-user-id'] as string) || DEFAULT_USER_ID;
+      const userId = req.user!.id;
 
       const docxBuffer = await TailoringService.exportCoverLetterDocx(id, userId);
       res.setHeader(

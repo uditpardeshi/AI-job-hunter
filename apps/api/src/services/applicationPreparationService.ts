@@ -584,6 +584,84 @@ export class ApplicationPreparationService {
   }
 
   /**
+   * Mark an application as manually submitted by the user
+   */
+  public static async markManuallySubmitted(
+    preparationId: string,
+    userId: string,
+    notes?: string
+  ): Promise<{ submission: ApplicationSubmission; status: string; message: string }> {
+    const prep = await this.getPreparationById(preparationId, userId);
+    if (!prep) throw new Error('Application preparation not found');
+
+    const job = prep.job || { id: prep.jobId, title: 'Job', company: 'Company' };
+    const jobSource = prep.source || 'MANUAL';
+
+    // 1. Record in application_submissions
+    const subRes = await pool.query(
+      `INSERT INTO application_submissions (
+        application_id, user_id, source, status,
+        confirmation_text, submitted_at
+      ) VALUES ($1, $2, $3, 'SUBMITTED', $4, NOW())
+      RETURNING *`,
+      [
+        prep.applicationId,
+        userId,
+        jobSource,
+        notes || 'Submitted manually by candidate'
+      ]
+    );
+
+    // 2. Update preparation status to SUBMITTED
+    await pool.query(
+      `UPDATE application_preparations SET status = 'SUBMITTED', updated_at = NOW() WHERE id = $1`,
+      [preparationId]
+    );
+
+    // 3. Update application status to APPLIED
+    await ApplicationService.updateStatus(
+      prep.applicationId,
+      userId,
+      'APPLIED',
+      notes || 'Candidate completed manual submission via external job URL'
+    );
+
+    // 4. Log Automation Event
+    await AutomationService.logAutomationEvent({
+      userId,
+      jobId: job.id,
+      applicationId: prep.applicationId,
+      eventType: 'APPLICATION_SUBMITTED',
+      status: 'SUCCESS',
+      message: `Manual application marked as submitted for ${job.title} at ${job.company}`,
+      metadata: {
+        submissionId: subRes.rows[0].id,
+        manual: true,
+        notes,
+      },
+    });
+
+    const submission: ApplicationSubmission = {
+      id: subRes.rows[0].id,
+      applicationId: prep.applicationId,
+      userId,
+      source: jobSource,
+      status: 'SUBMITTED',
+      sourceApplicationId: subRes.rows[0].source_application_id,
+      confirmationUrl: subRes.rows[0].confirmation_url,
+      confirmationText: subRes.rows[0].confirmation_text,
+      error: subRes.rows[0].error,
+      submittedAt: subRes.rows[0].submitted_at,
+    };
+
+    return {
+      submission,
+      status: 'SUBMITTED',
+      message: 'Application marked as submitted successfully!',
+    };
+  }
+
+  /**
    * Reject an application preparation
    */
   public static async rejectPreparation(

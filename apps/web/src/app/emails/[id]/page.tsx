@@ -23,6 +23,7 @@ import {
 import Navbar from '@/components/Navbar';
 import EmailComposerModal from '@/components/EmailComposerModal';
 import { EmailMessage, Application } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
 
 export default function EmailDetailPage() {
   const params = useParams();
@@ -43,8 +44,8 @@ export default function EmailDetailPage() {
     setIsLoading(true);
     try {
       const [emailRes, appsRes] = await Promise.all([
-        fetch(`${apiUrl}/api/emails/${id}`, { cache: 'no-store' }),
-        fetch(`${apiUrl}/api/applications?limit=100`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/emails/${id}`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/applications?limit=100`, { cache: 'no-store' }),
       ]);
 
       if (emailRes.ok) {
@@ -77,9 +78,8 @@ export default function EmailDetailPage() {
     setIsAssociating(true);
     setNotification(null);
     try {
-      const res = await fetch(`${apiUrl}/api/emails/${id}/associate`, {
+      const res = await authFetch(`${apiUrl}/api/emails/${id}/associate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ applicationId: appId }),
       });
       if (!res.ok) {
@@ -101,9 +101,8 @@ export default function EmailDetailPage() {
   const handleSuggestionAction = async (action: 'accept' | 'ignore') => {
     if (!email) return;
     try {
-      const res = await fetch(`${apiUrl}/api/emails/${id}/suggestion`, {
+      const res = await authFetch(`${apiUrl}/api/emails/${id}/suggestion`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       });
       if (!res.ok) {

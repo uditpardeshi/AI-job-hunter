@@ -18,6 +18,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { CoverLetter } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
 
 export default function CoverLetterStudioPage() {
   const params = useParams();
@@ -42,7 +43,7 @@ export default function CoverLetterStudioPage() {
       if (!id) return;
       setIsLoading(true);
       try {
-        const res = await fetch(`${apiUrl}/api/cover-letters/${id}`, { cache: 'no-store' });
+        const res = await authFetch(`${apiUrl}/api/cover-letters/${id}`, { cache: 'no-store' });
         if (!res.ok) {
           throw new Error(`Failed to load cover letter (HTTP ${res.status})`);
         }
@@ -66,9 +67,8 @@ export default function CoverLetterStudioPage() {
     setIsSaving(true);
     setSaveSuccess(false);
     try {
-      const res = await fetch(`${apiUrl}/api/cover-letters/${id}`, {
+      const res = await authFetch(`${apiUrl}/api/cover-letters/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content,
           tone: selectedTone,
@@ -93,9 +93,8 @@ export default function CoverLetterStudioPage() {
     setSelectedTone(newTone);
     setIsRegenerating(true);
     try {
-      const res = await fetch(`${apiUrl}/api/jobs/${coverLetter.jobId}/cover-letter`, {
+      const res = await authFetch(`${apiUrl}/api/jobs/${coverLetter.jobId}/cover-letter`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tone: newTone,
         }),

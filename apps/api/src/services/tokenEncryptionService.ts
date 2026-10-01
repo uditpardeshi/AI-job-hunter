@@ -2,11 +2,13 @@ import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96-bit IV recommended for GCM
-const DEFAULT_SECRET = 'ai-job-hunter-secret-encryption-key-dev-fallback';
 
 export class TokenEncryptionService {
   private static getKey(): Buffer {
-    const secret = process.env.ENCRYPTION_SECRET || DEFAULT_SECRET;
+    const secret = process.env.ENCRYPTION_SECRET;
+    if (!secret || secret.trim().length === 0) {
+      throw new Error('ENCRYPTION_SECRET is required but not set in environment. Set ENCRYPTION_SECRET to a secure 32+ character key.');
+    }
     // Derive a clean 32-byte key using SHA-256
     return crypto.createHash('sha256').update(secret).digest();
   }

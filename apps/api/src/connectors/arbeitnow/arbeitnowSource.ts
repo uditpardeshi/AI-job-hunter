@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { IJobSourceConnector } from '../types';
 import { RawJob, JobSourceCapabilities, SourceCapabilities } from '@ai-job-hunter/shared';
 import { logger } from '../../utils/logger';
@@ -40,11 +41,18 @@ export class ArbeitnowJobSource implements IJobSourceConnector {
       logger.info(`Arbeitnow API returned ${items.length} raw postings.`);
 
       return items.slice(0, 25).map((item) => {
+        const title = item.title || 'Untitled Role';
+        const company = item.company_name || 'Confidential Company';
+        const jobUrl = item.url || '';
+        const sourceJobId = item.slug
+          ? String(item.slug)
+          : this.deterministicId(jobUrl, title, company);
+
         return {
-          sourceJobId: item.slug || `arbeitnow-${item.created_at}-${Math.random().toString(36).substring(7)}`,
-          title: item.title || 'Untitled Role',
-          company: item.company_name || 'Confidential Company',
-          jobUrl: item.url,
+          sourceJobId,
+          title,
+          company,
+          jobUrl,
           location: item.location || (item.remote ? 'Remote' : 'Unspecified'),
           remoteType: item.remote ? 'remote' : 'onsite',
           employmentType: Array.isArray(item.job_types) && item.job_types.length > 0 ? item.job_types[0] : 'full_time',
@@ -59,6 +67,11 @@ export class ArbeitnowJobSource implements IJobSourceConnector {
       logger.error(`Failed to fetch jobs from Arbeitnow: ${errorMsg}`);
       throw new Error(`Arbeitnow connector error: ${errorMsg}`);
     }
+  }
+
+  private deterministicId(url: string, title: string, company: string): string {
+    const normalized = `${url.trim().toLowerCase()}|${title.trim().toLowerCase()}|${company.trim().toLowerCase()}`;
+    return `arbeitnow-${crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 32)}`;
   }
 
   public getSourceCapabilities(): SourceCapabilities {

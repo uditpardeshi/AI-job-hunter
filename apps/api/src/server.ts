@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { config } from './config';
 import { healthRouter } from './routes/healthRoutes';
+import authRouter from './routes/authRoutes';
 import { resumeRouter } from './routes/resumeRoutes';
 import { jobRouter } from './routes/jobRoutes';
 import matchRouter from './routes/matchRoutes';
@@ -38,9 +39,13 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+
+// Mount auth routes
+app.use(authRouter);
+app.use('/api', authRouter);
 
 // Mount health routes at both / and /api
 app.use(healthRouter);

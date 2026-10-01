@@ -22,6 +22,8 @@ import {
   Lock,
 } from 'lucide-react';
 import { ApprovalItem, ApplicationQuestion } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
+import Navbar from '@/components/Navbar';
 
 export default function ApprovalsPage() {
   const [items, setItems] = useState<ApprovalItem[]>([]);
@@ -34,7 +36,13 @@ export default function ApprovalsPage() {
   const fetchApprovals = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/approvals`, { cache: 'no-store' });
+      const res = await authFetch(`${apiUrl}/api/approvals`, { cache: 'no-store' });
+      if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+          return;
+        }
+      }
       const json = await res.json();
       if (json.success) {
         setItems(json.data || []);
@@ -77,9 +85,8 @@ export default function ApprovalsPage() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       const answers = answersState[prepId] || {};
-      const res = await fetch(`${apiUrl}/api/approvals/${prepId}/answers`, {
+      const res = await authFetch(`${apiUrl}/api/approvals/${prepId}/answers`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers }),
       });
       const json = await res.json();
@@ -101,9 +108,8 @@ export default function ApprovalsPage() {
     setMessage(null);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/approvals/${prepId}/approve`, {
+      const res = await authFetch(`${apiUrl}/api/approvals/${prepId}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: 'Approved by candidate' }),
       });
       const json = await res.json();
@@ -131,6 +137,29 @@ export default function ApprovalsPage() {
     }
   };
 
+  const handleMarkManuallySubmitted = async (prepId: string) => {
+    setActionLoading(prepId);
+    setMessage(null);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const res = await authFetch(`${apiUrl}/api/approvals/${prepId}/submit-manually`, {
+        method: 'POST',
+        body: JSON.stringify({ notes: 'Candidate applied manually via external job URL' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setMessage({ type: 'success', text: 'Application marked as submitted!' });
+        fetchApprovals();
+      } else {
+        setMessage({ type: 'error', text: json.error || 'Submission marking failed' });
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleReject = async (prepId: string) => {
     const reason = prompt('Optional: reason for rejecting this application from queue:');
     if (reason === null) return; // cancelled
@@ -139,9 +168,8 @@ export default function ApprovalsPage() {
     setMessage(null);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/approvals/${prepId}/reject`, {
+      const res = await authFetch(`${apiUrl}/api/approvals/${prepId}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason }),
       });
       const json = await res.json();
@@ -159,9 +187,11 @@ export default function ApprovalsPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-10 max-w-6xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-6 rounded-2xl border border-slate-800 backdrop-blur-md">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      <Navbar />
+      <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl w-full mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-5 rounded-2xl border border-slate-800 backdrop-blur-md">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
@@ -437,6 +467,15 @@ export default function ApprovalsPage() {
                           Save Answers
                         </button>
                         <button
+                          onClick={() => handleMarkManuallySubmitted(prep.id)}
+                          disabled={isActionBusy}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 transition-colors disabled:opacity-50"
+                          title="If you applied directly on the company portal, mark this application as submitted"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-sky-400" />
+                          Mark Submitted
+                        </button>
+                        <button
                           onClick={() => handleApprove(prep.id)}
                           disabled={isActionBusy}
                           className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50"
@@ -453,6 +492,7 @@ export default function ApprovalsPage() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }

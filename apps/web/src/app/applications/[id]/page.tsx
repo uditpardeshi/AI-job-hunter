@@ -40,6 +40,7 @@ import {
   ApplicationContact,
   EmailPurpose,
 } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
 
 const STATUS_OPTIONS: Array<{ id: ApplicationStatus; label: string }> = [
   { id: 'SAVED', label: 'Saved' },
@@ -89,9 +90,9 @@ export default function ApplicationDetailPage() {
     if (!id) return;
     try {
       const [appRes, emailsRes, contactsRes] = await Promise.all([
-        fetch(`${apiUrl}/api/applications/${id}`, { cache: 'no-store' }),
-        fetch(`${apiUrl}/api/emails?applicationId=${id}`, { cache: 'no-store' }),
-        fetch(`${apiUrl}/api/applications/${id}/contacts`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/applications/${id}`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/emails?applicationId=${id}`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/applications/${id}/contacts`, { cache: 'no-store' }),
       ]);
 
       if (!appRes.ok) {
@@ -128,9 +129,8 @@ export default function ApplicationDetailPage() {
     if (!id || !contactName.trim() || !contactEmail.trim()) return;
     setIsSubmittingContact(true);
     try {
-      const res = await fetch(`${apiUrl}/api/applications/${id}/contacts`, {
+      const res = await authFetch(`${apiUrl}/api/applications/${id}/contacts`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: contactName.trim(),
           email: contactEmail.trim(),
@@ -154,7 +154,7 @@ export default function ApplicationDetailPage() {
   const handleDeleteContact = async (contactId: string) => {
     if (!confirm('Remove this recruiter contact?')) return;
     try {
-      const res = await fetch(`${apiUrl}/api/applications/${id}/contacts/${contactId}`, {
+      const res = await authFetch(`${apiUrl}/api/applications/${id}/contacts/${contactId}`, {
         method: 'DELETE',
       });
       if (res.ok) {
@@ -182,9 +182,8 @@ export default function ApplicationDetailPage() {
     if (!id || !application) return;
     setIsUpdatingStatus(true);
     try {
-      const res = await fetch(`${apiUrl}/api/applications/${id}/status`, {
+      const res = await authFetch(`${apiUrl}/api/applications/${id}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
       const json = await res.json();
@@ -203,9 +202,8 @@ export default function ApplicationDetailPage() {
     if (!id || !newNote.trim()) return;
     setIsSubmittingNote(true);
     try {
-      const res = await fetch(`${apiUrl}/api/applications/${id}/notes`, {
+      const res = await authFetch(`${apiUrl}/api/applications/${id}/notes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ noteText: newNote.trim() }),
       });
       const json = await res.json();
@@ -223,9 +221,8 @@ export default function ApplicationDetailPage() {
     if (!id) return;
     setIsUpdatingFollowUp(true);
     try {
-      const res = await fetch(`${apiUrl}/api/applications/${id}/follow-up`, {
+      const res = await authFetch(`${apiUrl}/api/applications/${id}/follow-up`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nextFollowUpAt: followUpDate || null }),
       });
       const json = await res.json();
@@ -242,9 +239,8 @@ export default function ApplicationDetailPage() {
     if (!id) return;
     setIsUpdatingFollowUp(true);
     try {
-      const res = await fetch(`${apiUrl}/api/applications/${id}/follow-up`, {
+      const res = await authFetch(`${apiUrl}/api/applications/${id}/follow-up`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nextFollowUpAt: null, isCompleted: true }),
       });
       const json = await res.json();

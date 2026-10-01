@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { Application, ApplicationStatus } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
 
 const STATUS_COLUMNS: Array<{ id: ApplicationStatus; label: string; color: string; border: string }> = [
   { id: 'SAVED', label: 'Saved', color: 'bg-slate-800 text-slate-300', border: 'border-slate-700' },
@@ -63,9 +64,15 @@ function ApplicationsContent() {
       if (searchQuery.trim()) params.append('search', searchQuery.trim());
       if (searchParams.get('hasFollowUp') === 'true') params.append('hasFollowUp', 'true');
 
-      const res = await fetch(`${apiUrl}/api/applications?${params.toString()}`, {
+      const res = await authFetch(`${apiUrl}/api/applications?${params.toString()}`, {
         cache: 'no-store',
       });
+      if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+          return;
+        }
+      }
       if (res.ok) {
         const json = await res.json();
         setApplications(json.data || []);
@@ -84,9 +91,8 @@ function ApplicationsContent() {
 
   const handleStatusChange = async (applicationId: string, newStatus: ApplicationStatus) => {
     try {
-      const res = await fetch(`${apiUrl}/api/applications/${applicationId}/status`, {
+      const res = await authFetch(`${apiUrl}/api/applications/${applicationId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {

@@ -16,6 +16,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { EmailPurpose, EmailTone, EmailAttachment } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
 
 interface EmailComposerModalProps {
   isOpen: boolean;
@@ -80,7 +81,7 @@ export default function EmailComposerModal({
       const items: EmailAttachment[] = [];
 
       // Base resume
-      const resVer = await fetch(`${apiUrl}/api/resumes/versions`, { cache: 'no-store' });
+      const resVer = await authFetch(`${apiUrl}/api/resumes/versions`, { cache: 'no-store' });
       if (resVer.ok) {
         const vData = await resVer.json();
         if (vData.data && vData.data.length > 0) {
@@ -99,8 +100,8 @@ export default function EmailComposerModal({
       // If job ID available, fetch tailored materials
       if (jobId) {
         const [trRes, clRes] = await Promise.all([
-          fetch(`${apiUrl}/api/jobs/${jobId}/tailored-resumes`, { cache: 'no-store' }),
-          fetch(`${apiUrl}/api/jobs/${jobId}/cover-letters`, { cache: 'no-store' }),
+          authFetch(`${apiUrl}/api/jobs/${jobId}/tailored-resumes`, { cache: 'no-store' }),
+          authFetch(`${apiUrl}/api/jobs/${jobId}/cover-letters`, { cache: 'no-store' }),
         ]);
 
         if (trRes.ok) {
@@ -144,9 +145,8 @@ export default function EmailComposerModal({
     setIsGenerating(true);
     setError(null);
     try {
-      const res = await fetch(`${apiUrl}/api/emails/generate`, {
+      const res = await authFetch(`${apiUrl}/api/emails/generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           applicationId,
           emailId: replyToEmailId,
@@ -158,7 +158,7 @@ export default function EmailComposerModal({
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to generate draft');
+        throw new Error(errData.error || errData.message || 'Failed to generate draft');
       }
 
       const data = await res.json();
@@ -191,9 +191,8 @@ export default function EmailComposerModal({
       const toList = to.split(',').map((e) => e.trim()).filter(Boolean);
       const ccList = cc.split(',').map((e) => e.trim()).filter(Boolean);
 
-      const res = await fetch(`${apiUrl}/api/emails/send`, {
+      const res = await authFetch(`${apiUrl}/api/emails/send`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           applicationId,
           to: toList,
@@ -206,7 +205,7 @@ export default function EmailComposerModal({
 
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.error || 'Failed to send email');
+        throw new Error(errData.error || errData.message || 'Failed to send email');
       }
 
       if (onEmailSent) {

@@ -2,12 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import { ApplicationPreparationService } from '../services/applicationPreparationService';
 import { PreparationStatus } from '@ai-job-hunter/shared';
 
-const DEFAULT_USER_ID = '00000000-0000-0000-0000-000000000001';
-
 export class ApprovalController {
   public static async listApprovals(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req as any).user?.id || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const status = req.query.status as PreparationStatus | undefined;
       const items = await ApplicationPreparationService.listApprovalItems(userId, status);
       res.json({ success: true, data: items, count: items.length });
@@ -18,7 +16,7 @@ export class ApprovalController {
 
   public static async getApproval(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req as any).user?.id || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const item = await ApplicationPreparationService.getPreparationById(req.params.id, userId);
       if (!item) {
         res.status(404).json({ success: false, error: 'Approval item not found' });
@@ -32,7 +30,7 @@ export class ApprovalController {
 
   public static async updateAnswers(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req as any).user?.id || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const answers = req.body.answers;
       if (!answers || typeof answers !== 'object') {
         res.status(400).json({ success: false, error: 'Answers map is required' });
@@ -47,7 +45,7 @@ export class ApprovalController {
 
   public static async approve(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req as any).user?.id || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const { notes } = req.body;
       const result = await ApplicationPreparationService.approveAndSubmit(req.params.id, userId, notes);
       res.json({ success: true, data: result });
@@ -56,9 +54,20 @@ export class ApprovalController {
     }
   }
 
+  public static async submitManually(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const { notes } = req.body;
+      const result = await ApplicationPreparationService.markManuallySubmitted(req.params.id, userId, notes);
+      res.json({ success: true, data: result, message: 'Application marked as submitted' });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   public static async reject(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const userId = (req as any).user?.id || DEFAULT_USER_ID;
+      const userId = req.user!.id;
       const { reason } = req.body;
       const result = await ApplicationPreparationService.rejectPreparation(req.params.id, userId, reason);
       res.json({ success: true, data: result, message: 'Application rejected' });

@@ -40,6 +40,8 @@ import {
   CandidatePreferences,
   ResumeVersion,
 } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
+import Navbar from '@/components/Navbar';
 
 const initialBasics: CandidateBasics = {
   name: '',
@@ -102,8 +104,8 @@ export default function ResumePage() {
   const fetchProfileAndVersions = useCallback(async () => {
     try {
       const [profRes, verRes] = await Promise.all([
-        fetch(`${apiUrl}/api/profile`, { cache: 'no-store' }),
-        fetch(`${apiUrl}/api/resumes/versions`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/profile`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/resumes/versions`, { cache: 'no-store' }),
       ]);
 
       if (profRes.ok) {
@@ -153,14 +155,14 @@ export default function ResumePage() {
       setProcessingStatus('extracting');
       setProcessingMessage('Extracting structured text from document...');
 
-      const response = await fetch(`${apiUrl}/api/resumes`, {
+      const response = await authFetch(`${apiUrl}/api/resumes`, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.message || 'Upload failed');
+        throw new Error(errData.message || errData.error || 'Upload failed');
       }
 
       setProcessingStatus('parsing');
@@ -203,9 +205,8 @@ export default function ResumePage() {
     setIsSaving(true);
     setSaveFeedback(null);
     try {
-      const res = await fetch(`${apiUrl}/api/profile`, {
+      const res = await authFetch(`${apiUrl}/api/profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profile),
       });
 
@@ -337,42 +338,30 @@ export default function ResumePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Top Navbar */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 transition-colors mr-1"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Status</span>
-            </Link>
-            <span className="text-slate-700">|</span>
-            <Link
-              href="/jobs"
-              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
-            >
-              Job Board
-            </Link>
-            <span className="text-slate-700">|</span>
-            <div className="flex items-center gap-2">
+      <Navbar />
+
+      {/* Main Content */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full space-y-6">
+        {/* Top Action Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+          <div>
+            <h1 className="text-xl font-extrabold text-slate-100 flex items-center gap-2">
               <FileText className="w-5 h-5 text-sky-400" />
-              <span className="font-bold text-slate-100 text-lg">Candidate Profile</span>
-            </div>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400">
-              Step 2
-            </span>
+              Candidate Profile & Resumes
+            </h1>
+            <p className="text-xs text-slate-400">
+              Manage your verified career facts, upload new resumes, and configure target job preferences
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
             {profile.verificationStatus === 'verified' ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                Verified Profile
+                Verified
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-400">
                 <Clock className="w-3.5 h-3.5" />
                 Needs Review
               </span>
@@ -381,20 +370,17 @@ export default function ResumePage() {
             <button
               onClick={handleSaveVerified}
               disabled={isSaving}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-lg shadow-sky-600/20 transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-600/20 transition-all disabled:opacity-50"
             >
               <Save className={`w-3.5 h-3.5 ${isSaving ? 'animate-spin' : ''}`} />
-              {isSaving ? 'Saving...' : 'Save Verified Profile'}
+              {isSaving ? 'Saving...' : 'Save Profile'}
             </button>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-8">
         {/* Feedback Alert */}
         {saveFeedback && (
-          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-2 animate-fadeIn">
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2 animate-fadeIn">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{saveFeedback}</span>
           </div>

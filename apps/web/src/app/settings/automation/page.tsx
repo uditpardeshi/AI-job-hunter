@@ -21,6 +21,8 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { AutomationSettings, JobSearchProfile } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
+import Navbar from '@/components/Navbar';
 
 export default function AutomationSettingsPage() {
   const [settings, setSettings] = useState<AutomationSettings | null>(null);
@@ -41,9 +43,15 @@ export default function AutomationSettingsPage() {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       const [settingsRes, profilesRes] = await Promise.all([
-        fetch(`${apiUrl}/api/automation/settings`, { cache: 'no-store' }),
-        fetch(`${apiUrl}/api/automation/profiles`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/automation/settings`, { cache: 'no-store' }),
+        authFetch(`${apiUrl}/api/automation/profiles`, { cache: 'no-store' }),
       ]);
+      if (settingsRes.status === 401 || profilesRes.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+          return;
+        }
+      }
       const settingsJson = await settingsRes.json();
       const profilesJson = await profilesRes.json();
 
@@ -66,9 +74,8 @@ export default function AutomationSettingsPage() {
     setMessage(null);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/automation/settings`, {
+      const res = await authFetch(`${apiUrl}/api/automation/settings`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
       const json = await res.json();
@@ -91,9 +98,8 @@ export default function AutomationSettingsPage() {
     setSaving(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/automation/profiles`, {
+      const res = await authFetch(`${apiUrl}/api/automation/profiles`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newProfileName,
           roles: newRoles ? newRoles.split(',').map((r) => r.trim()).filter(Boolean) : [],
@@ -126,7 +132,7 @@ export default function AutomationSettingsPage() {
     if (!confirm('Are you sure you want to delete this search profile?')) return;
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/automation/profiles/${id}`, { method: 'DELETE' });
+      const res = await authFetch(`${apiUrl}/api/automation/profiles/${id}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) {
         fetchData();
@@ -139,9 +145,8 @@ export default function AutomationSettingsPage() {
   const handleToggleProfile = async (profile: JobSearchProfile) => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      await fetch(`${apiUrl}/api/automation/profiles/${profile.id}`, {
+      await authFetch(`${apiUrl}/api/automation/profiles/${profile.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: !profile.enabled }),
       });
       fetchData();
@@ -159,9 +164,11 @@ export default function AutomationSettingsPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-10 max-w-5xl mx-auto space-y-8">
-      {/* Header */}
-      <div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+      <Navbar />
+      <div className="flex-1 p-4 sm:p-6 md:p-8 max-w-5xl w-full mx-auto space-y-6">
+        {/* Header */}
+        <div>
         <Link
           href="/automation"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors mb-2"
@@ -335,6 +342,95 @@ export default function AutomationSettingsPage() {
               </select>
               <span className="text-[11px] text-slate-500">How often sources are checked for new postings</span>
             </div>
+
+            {/* Email Sync Enabled */}
+            <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="font-bold text-slate-200 block text-sm">Background Gmail Sync</span>
+                <span className="text-slate-400 text-[11px] block mt-0.5">
+                  Periodically sync recruiter and application emails from connected Gmail
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.emailSyncEnabled ?? false}
+                onChange={(e) => setSettings({ ...settings, emailSyncEnabled: e.target.checked })}
+                className="w-5 h-5 accent-sky-500 rounded"
+              />
+            </div>
+
+            {/* Automatic Email Reply Generation */}
+            <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="font-bold text-slate-200 block text-sm">Automatic AI Reply Drafts</span>
+                <span className="text-slate-400 text-[11px] block mt-0.5">
+                  Prepare draft responses to incoming recruiter messages (user approval required)
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.automaticEmailGeneration ?? true}
+                onChange={(e) => setSettings({ ...settings, automaticEmailGeneration: e.target.checked })}
+                className="w-5 h-5 accent-sky-500 rounded"
+              />
+            </div>
+
+            {/* Automatic Email Sending (Safety Switch) */}
+            <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 flex items-center justify-between">
+              <div>
+                <span className="font-bold text-slate-200 block text-sm">Automatic Email Sending</span>
+                <span className="text-slate-400 text-[11px] block mt-0.5 text-amber-400 font-semibold">
+                  Default OFF. When disabled, all emails require explicit human send approval
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.automaticEmailSending ?? false}
+                onChange={(e) => setSettings({ ...settings, automaticEmailSending: e.target.checked })}
+                className="w-5 h-5 accent-amber-500 rounded"
+              />
+            </div>
+          </div>
+
+          {/* Emergency Kill Switch */}
+          <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+            <div>
+              <span className="font-bold text-slate-100 text-sm block">Global Kill Switch</span>
+              <span className="text-slate-400 text-[11px]">
+                Immediately stops all background hunting, application preparation, and automated email actions.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+                if (settings.killSwitchActive) {
+                  const res = await authFetch(`${apiUrl}/api/automation/resume`, { method: 'POST' });
+                  const data = await res.json();
+                  if (data.success) {
+                    setSettings({ ...settings, killSwitchActive: false });
+                    setMessage({ type: 'success', text: 'System resumed.' });
+                  }
+                } else {
+                  const res = await authFetch(`${apiUrl}/api/automation/kill-switch`, {
+                    method: 'POST',
+                    body: JSON.stringify({ reason: 'User initiated STOP ALL AUTOMATION' }),
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setSettings({ ...settings, killSwitchActive: true, automationEnabled: false });
+                    setMessage({ type: 'error', text: 'STOP ALL AUTOMATION activated.' });
+                  }
+                }
+              }}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md ${
+                settings.killSwitchActive
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  : 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/30'
+              }`}
+            >
+              {settings.killSwitchActive ? 'RESUME AUTOMATION' : 'STOP ALL AUTOMATION'}
+            </button>
           </div>
         </div>
       )}
@@ -483,6 +579,7 @@ export default function AutomationSettingsPage() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

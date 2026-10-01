@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { DashboardData, ApplicationStatus, EmailMessage, AutomationSummary } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
 
 export default function DashboardPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -48,7 +49,13 @@ export default function DashboardPage() {
 
   const loadDashboard = async () => {
     try {
-      const res = await fetch(`${apiUrl}/api/dashboard`, { cache: 'no-store' });
+      const res = await authFetch(`${apiUrl}/api/dashboard`, { cache: 'no-store' });
+      if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+          return;
+        }
+      }
       if (!res.ok) {
         throw new Error(`Failed to load dashboard data (HTTP ${res.status})`);
       }
@@ -57,9 +64,9 @@ export default function DashboardPage() {
 
       try {
         const [emailRes, gmailRes, autoRes] = await Promise.all([
-          fetch(`${apiUrl}/api/emails?limit=4`, { cache: 'no-store' }),
-          fetch(`${apiUrl}/api/integrations/gmail`, { cache: 'no-store' }),
-          fetch(`${apiUrl}/api/automation/summary`, { cache: 'no-store' }),
+          authFetch(`${apiUrl}/api/emails?limit=4`, { cache: 'no-store' }),
+          authFetch(`${apiUrl}/api/integrations/gmail`, { cache: 'no-store' }),
+          authFetch(`${apiUrl}/api/automation/summary`, { cache: 'no-store' }),
         ]);
         if (emailRes.ok) {
           const ej = await emailRes.json();
@@ -87,12 +94,14 @@ export default function DashboardPage() {
   const handleQuickSync = async () => {
     setIsSyncingGmail(true);
     try {
-      const res = await fetch(`${apiUrl}/api/integrations/gmail/sync`, { method: 'POST' });
+      const res = await authFetch(`${apiUrl}/api/integrations/gmail/sync`, { method: 'POST' });
       const json = await res.json();
       if (res.ok) {
         setActionSuccess(`Inbox synchronized (${json.data?.newCount ?? 0} new messages).`);
         setTimeout(() => setActionSuccess(null), 3500);
         loadDashboard();
+      } else {
+        alert(json.error || json.message || 'Sync failed');
       }
     } catch (err: any) {
       alert(err.message);
@@ -112,14 +121,13 @@ export default function DashboardPage() {
 
   const handleQuickSaveJob = async (jobId: string, status: ApplicationStatus = 'SAVED') => {
     try {
-      const res = await fetch(`${apiUrl}/api/applications`, {
+      const res = await authFetch(`${apiUrl}/api/applications`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId, status }),
       });
       const json = await res.json();
       if (!res.ok) {
-        throw new Error(json.error || 'Failed to save job');
+        throw new Error(json.error || json.message || 'Failed to save job');
       }
       setActionSuccess(`Job added to ${status.toLowerCase()} applications!`);
       setTimeout(() => setActionSuccess(null), 3500);
@@ -234,6 +242,30 @@ export default function DashboardPage() {
       color: 'text-rose-400 bg-rose-500/10',
       border: 'border-rose-500/20',
       href: '/applications?status=REJECTED',
+    },
+    {
+      label: 'Awaiting Approval',
+      count: stats.awaitingApproval ?? 0,
+      icon: <CheckSquare className="w-4 h-4 text-amber-300" />,
+      color: 'text-amber-300 bg-amber-500/10',
+      border: 'border-amber-500/20',
+      href: '/approvals',
+    },
+    {
+      label: 'Recruiter Emails',
+      count: stats.recruiterEmails ?? 0,
+      icon: <Mail className="w-4 h-4 text-sky-400" />,
+      color: 'text-sky-400 bg-sky-500/10',
+      border: 'border-sky-500/20',
+      href: '/emails',
+    },
+    {
+      label: 'Pending Replies',
+      count: stats.pendingEmailReplies ?? 0,
+      icon: <Clock className="w-4 h-4 text-violet-400" />,
+      color: 'text-violet-400 bg-violet-500/10',
+      border: 'border-violet-500/20',
+      href: '/emails',
     },
   ];
 
@@ -380,7 +412,7 @@ export default function DashboardPage() {
         )}
 
         {/* KPI Summary Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {kpis.map((kpi, idx) => (
             <Link
               key={idx}

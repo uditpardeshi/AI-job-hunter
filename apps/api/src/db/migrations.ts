@@ -18,15 +18,24 @@ export async function runMigrations(): Promise<void> {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email VARCHAR(255) UNIQUE NOT NULL,
         name VARCHAR(255),
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        password_hash VARCHAR(255),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
     `);
 
-    // Seed default developer user
+    // Seed default developer user with initial password hash ('Developer123!')
     await client.query(`
-      INSERT INTO users (id, email, name)
-      VALUES ($1, 'developer@aijobhunter.local', 'Developer User')
-      ON CONFLICT (id) DO NOTHING;
+      INSERT INTO users (id, email, name, password_hash)
+      VALUES ($1, 'developer@aijobhunter.local', 'Developer User', 'b134fa9e27b2df2d11049a915d6f9177:5936c0992cda14abe9b54bb3d530dc45a4c17f99307ea109c57cb432e69fb4189b1b160a7e54618b3ed2b872be50d4b82b89b2e39890c8fd921b551fa7c82e0a')
+      ON CONFLICT (id) DO UPDATE SET
+        password_hash = CASE 
+          WHEN users.password_hash IS NULL OR users.password_hash LIKE 'pbkdf2%' 
+          THEN EXCLUDED.password_hash 
+          ELSE users.password_hash 
+        END;
     `, [DEFAULT_USER_ID]);
 
     // 2. resumes table
@@ -691,6 +700,13 @@ export async function runMigrations(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS idx_app_submissions_app ON application_submissions(application_id, submitted_at DESC);
       CREATE INDEX IF NOT EXISTS idx_app_submissions_user ON application_submissions(user_id, submitted_at DESC);
+    `);
+
+    // Ensure email automation flags exist on automation_settings
+    await client.query(`
+      ALTER TABLE automation_settings ADD COLUMN IF NOT EXISTS email_sync_enabled BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE automation_settings ADD COLUMN IF NOT EXISTS automatic_email_generation BOOLEAN NOT NULL DEFAULT true;
+      ALTER TABLE automation_settings ADD COLUMN IF NOT EXISTS automatic_email_sending BOOLEAN NOT NULL DEFAULT false;
     `);
 
     await client.query('COMMIT');

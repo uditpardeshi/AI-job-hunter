@@ -27,7 +27,8 @@ export function Navbar() {
     { label: 'Applications', href: '/applications', icon: Layers },
     { label: 'Inbox', href: '/emails', icon: Mail },
     { label: 'Profile', href: '/resume', icon: FileText },
-    { label: 'Integrations', href: '/settings/integrations', icon: Settings },
+    { label: 'Automation Config', href: '/settings/automation', icon: Settings },
+    { label: 'Integrations', href: '/settings/integrations', icon: Sparkles },
   ];
 
   return (
@@ -70,6 +71,23 @@ export function Navbar() {
               </Link>
             );
           })}
+
+          <button
+            onClick={async () => {
+              const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+              try {
+                await fetch(`${apiUrl}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+              } catch (_) {}
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('auth_token');
+                window.location.href = '/login';
+              }
+            }}
+            title="Sign out"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors ml-1"
+          >
+            <span className="hidden sm:inline">Logout</span>
+          </button>
         </nav>
       </div>
     </header>

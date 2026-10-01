@@ -750,13 +750,19 @@ export class EmailService {
     return this.mapDraftRow(res.rows[0]);
   }
 
-  public static async listDrafts(userId: string, applicationId?: string): Promise<EmailDraft[]> {
+  public static async listDrafts(userId: string, applicationId?: string, emailId?: string): Promise<EmailDraft[]> {
     const whereClauses = ['user_id = $1', "status != 'DISCARDED'"];
     const values: any[] = [userId];
+    let valIdx = 2;
 
     if (applicationId) {
-      whereClauses.push('application_id = $2');
+      whereClauses.push(`application_id = $${valIdx++}`);
       values.push(applicationId);
+    }
+
+    if (emailId) {
+      whereClauses.push(`reply_to_email_id = $${valIdx++}`);
+      values.push(emailId);
     }
 
     const res = await pool.query(
@@ -765,6 +771,72 @@ export class EmailService {
     );
 
     return res.rows.map(this.mapDraftRow);
+  }
+
+  public static async updateDraft(
+    draftId: string,
+    userId: string,
+    updates: Partial<EmailDraft>
+  ): Promise<EmailDraft> {
+    const existing = await pool.query(
+      'SELECT id FROM email_drafts WHERE id = $1 AND user_id = $2',
+      [draftId, userId]
+    );
+    if (existing.rows.length === 0) {
+      throw new Error('Email draft not found');
+    }
+
+    const fields: string[] = ['updated_at = NOW()'];
+    const values: any[] = [draftId, userId];
+    let idx = 3;
+
+    if (updates.subject !== undefined) {
+      fields.push(`subject = $${idx++}`);
+      values.push(updates.subject);
+    }
+    if (updates.body !== undefined) {
+      fields.push(`body = $${idx++}`);
+      values.push(updates.body);
+    }
+    if (updates.recipient !== undefined) {
+      fields.push(`recipient = $${idx++}`);
+      values.push(updates.recipient);
+    }
+    if (updates.cc !== undefined) {
+      fields.push(`cc = $${idx++}`);
+      values.push(updates.cc);
+    }
+    if (updates.tone !== undefined) {
+      fields.push(`tone = $${idx++}`);
+      values.push(updates.tone);
+    }
+    if (updates.purpose !== undefined) {
+      fields.push(`purpose = $${idx++}`);
+      values.push(updates.purpose);
+    }
+    if (updates.status !== undefined) {
+      fields.push(`status = $${idx++}`);
+      values.push(updates.status);
+    }
+    if (updates.attachments !== undefined) {
+      fields.push(`attachments = $${idx++}`);
+      values.push(JSON.stringify(updates.attachments));
+    }
+
+    const res = await pool.query(
+      `UPDATE email_drafts SET ${fields.join(', ')} WHERE id = $1 AND user_id = $2 RETURNING *;`,
+      values
+    );
+
+    return this.mapDraftRow(res.rows[0]);
+  }
+
+  public static async deleteDraft(draftId: string, userId: string): Promise<boolean> {
+    const res = await pool.query(
+      "UPDATE email_drafts SET status = 'DISCARDED', updated_at = NOW() WHERE id = $1 AND user_id = $2 RETURNING id;",
+      [draftId, userId]
+    );
+    return res.rows.length > 0;
   }
 
   // ----------------------------------------------------

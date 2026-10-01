@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { AutomationController } from '../controllers/automationController';
+import { requireAuth } from '../middleware/authMiddleware';
 
 const router = Router();
+
+router.use(requireAuth);
 
 // Settings & Controls
 router.get('/settings', AutomationController.getSettings);
@@ -13,6 +16,7 @@ router.get('/summary', AutomationController.getSummary);
 // Runs & Pipeline execution
 router.post('/run', AutomationController.triggerRun);
 router.get('/runs', AutomationController.listRuns);
+router.get('/history', AutomationController.listRuns);
 router.get('/runs/:id', AutomationController.getRun);
 router.get('/events', AutomationController.listEvents);
 

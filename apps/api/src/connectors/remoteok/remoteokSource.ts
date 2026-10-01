@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { IJobSourceConnector } from '../types';
 import { RawJob, JobSourceCapabilities, SourceCapabilities } from '@ai-job-hunter/shared';
 import { logger } from '../../utils/logger';
@@ -65,12 +66,19 @@ export class RemoteOKJobSource implements IJobSourceConnector {
       return items
         .filter((item: any) => item && (item.position || item.title))
         .map((item: any) => {
+          const title = item.position || item.title || 'Remote Software Engineer';
+          const company = item.company || 'Remote Company';
+          const jobUrl = item.url || item.apply_url || `https://remoteok.com/remote-jobs/${item.id}`;
+          const sourceJobId = item.id
+            ? String(item.id)
+            : (item.slug ? String(item.slug) : this.deterministicId(jobUrl, title, company));
+
           return {
-            sourceJobId: String(item.id || item.slug || Math.random().toString(36).substring(7)),
-            title: item.position || item.title || 'Remote Software Engineer',
-            company: item.company || 'Remote Company',
+            sourceJobId,
+            title,
+            company,
             companyUrl: item.company_logo ? undefined : undefined,
-            jobUrl: item.url || item.apply_url || `https://remoteok.com/remote-jobs/${item.id}`,
+            jobUrl,
             location: item.location || 'Remote',
             remoteType: 'remote',
             employmentType: 'full_time',
@@ -88,5 +96,10 @@ export class RemoteOKJobSource implements IJobSourceConnector {
       logger.warn(`RemoteOK fetch failed: ${errorMsg}. Falling back to empty list.`);
       return [];
     }
+  }
+
+  private deterministicId(url: string, title: string, company: string): string {
+    const normalized = `${url.trim().toLowerCase()}|${title.trim().toLowerCase()}|${company.trim().toLowerCase()}`;
+    return `remoteok-${crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 32)}`;
   }
 }

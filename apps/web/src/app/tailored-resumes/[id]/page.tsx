@@ -27,6 +27,7 @@ import {
   AtsAnalysisResult,
   TailoringChanges,
 } from '@ai-job-hunter/shared';
+import { authFetch } from '@/lib/api';
 
 export default function TailoredResumeStudioPage() {
   const params = useParams();
@@ -51,7 +52,7 @@ export default function TailoredResumeStudioPage() {
       if (!id) return;
       setIsLoading(true);
       try {
-        const res = await fetch(`${apiUrl}/api/tailored-resumes/${id}`, { cache: 'no-store' });
+        const res = await authFetch(`${apiUrl}/api/tailored-resumes/${id}`, { cache: 'no-store' });
         if (!res.ok) {
           throw new Error(`Failed to load tailored resume (HTTP ${res.status})`);
         }
@@ -78,9 +79,8 @@ export default function TailoredResumeStudioPage() {
     setSaveSuccess(false);
     try {
       const dataToSave = updatedData || formData;
-      const res = await fetch(`${apiUrl}/api/tailored-resumes/${id}`, {
+      const res = await authFetch(`${apiUrl}/api/tailored-resumes/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           resumeData: dataToSave,
         }),

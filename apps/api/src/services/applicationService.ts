@@ -235,7 +235,8 @@ export class ApplicationService {
       }
 
       await client.query('COMMIT');
-      return this.mapApplicationRow(appRow);
+      const createdApp = await this.getApplicationById(appId, userId);
+      return createdApp || this.mapApplicationRow(appRow);
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

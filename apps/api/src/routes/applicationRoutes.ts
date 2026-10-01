@@ -1,7 +1,10 @@
 import { Router } from 'express';
 import { ApplicationController } from '../controllers/applicationController';
+import { requireAuth } from '../middleware/authMiddleware';
 
 const router = Router();
+
+router.use(requireAuth);
 
 router.get('/applications', ApplicationController.listApplications);
 router.post('/applications', ApplicationController.createApplication);
