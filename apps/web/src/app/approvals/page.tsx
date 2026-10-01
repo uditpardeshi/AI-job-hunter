@@ -322,6 +322,19 @@ export default function ApprovalsPage() {
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0">
+                    {job.jobUrl && (
+                      <a
+                        href={job.jobUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all shadow-sm"
+                        title="Open application page on company website"
+                      >
+                        <span>Apply on Site</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
                     <span
                       className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
                         prep.status === 'READY'

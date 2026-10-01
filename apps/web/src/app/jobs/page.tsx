@@ -387,8 +387,10 @@ export default function JobsPage() {
                 className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-300 text-xs focus:outline-none focus:border-sky-500"
               >
                 <option value="">All Sources</option>
-                <option value="mock">Mock Source</option>
-                <option value="arbeitnow">Arbeitnow API</option>
+                <option value="arbeitnow">Arbeitnow</option>
+                <option value="remoteok">RemoteOK</option>
+                <option value="himalayas">Himalayas</option>
+                <option value="mock">Mock / Demo</option>
               </select>
             </div>
 
@@ -538,7 +540,20 @@ export default function JobsPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {!appInfo && (
+                      {job.jobUrl && (
+                        <a
+                          href={job.jobUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition-all shadow-sm shadow-emerald-950/40"
+                          title="Open application page on company/source website"
+                        >
+                          <span>Apply on Site</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+
+                      {!appInfo ? (
                         <>
                           <button
                             onClick={() => handleQuickSave(job.id, 'SAVED')}
@@ -553,11 +568,23 @@ export default function JobsPage() {
                             Shortlist
                           </button>
                         </>
+                      ) : (
+                        <button
+                          onClick={() => handleQuickSave(job.id, 'APPLIED')}
+                          disabled={appInfo.status === 'APPLIED'}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors border ${
+                            appInfo.status === 'APPLIED'
+                              ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/40 cursor-default'
+                              : 'bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border-sky-500/30'
+                          }`}
+                        >
+                          {appInfo.status === 'APPLIED' ? '✓ Applied' : 'Mark Applied'}
+                        </button>
                       )}
 
                       <Link
                         href={`/jobs/${job.id}`}
-                        className="font-semibold text-sky-400 hover:text-sky-300 transition-colors ml-1"
+                        className="font-semibold text-sky-400 hover:text-sky-300 transition-colors ml-1 inline-flex items-center gap-0.5"
                       >
                         Details →
                       </Link>

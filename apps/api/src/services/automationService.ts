@@ -123,6 +123,7 @@ export class AutomationService {
    * Trigger emergency kill switch - immediately pauses all active automations
    */
   public static async triggerKillSwitch(userId: string, reason?: string): Promise<AutomationSettings> {
+    await this.getSettings(userId);
     const res = await pool.query(
       `UPDATE automation_settings SET
         kill_switch_active = true,
@@ -149,6 +150,7 @@ export class AutomationService {
    * Resume automation after kill switch
    */
   public static async resumeKillSwitch(userId: string): Promise<AutomationSettings> {
+    await this.getSettings(userId);
     const res = await pool.query(
       `UPDATE automation_settings SET
         kill_switch_active = false,

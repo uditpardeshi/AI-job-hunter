@@ -300,14 +300,28 @@ function ApplicationsContent() {
                           )}
                         </div>
 
-                        {/* Quick Move Selector */}
-                        <div className="pt-1 flex items-center justify-between text-xs">
-                          <Link
-                            href={`/applications/${app.id}`}
-                            className="text-[11px] text-sky-400 hover:text-sky-300 font-semibold"
-                          >
-                            Details →
-                          </Link>
+                        {/* Quick Actions & Move Selector */}
+                        <div className="pt-1 flex items-center justify-between text-xs gap-2">
+                          <div className="flex items-center gap-2">
+                            {app.job?.jobUrl && (
+                              <a
+                                href={app.job.jobUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold"
+                                title="Open job application URL"
+                              >
+                                <span>Apply</span>
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
+                            <Link
+                              href={`/applications/${app.id}`}
+                              className="text-[11px] text-sky-400 hover:text-sky-300 font-semibold"
+                            >
+                              Hub →
+                            </Link>
+                          </div>
 
                           <select
                             value={app.status}
@@ -408,13 +422,27 @@ function ApplicationsContent() {
                       </td>
 
                       <td className="py-3.5 px-4 text-right">
-                        <Link
-                          href={`/applications/${app.id}`}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors"
-                        >
-                          <span>Open Hub</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-2">
+                          {app.job?.jobUrl && (
+                            <a
+                              href={app.job.jobUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition-colors"
+                              title="Apply on Employer Site"
+                            >
+                              <span>Apply</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                          <Link
+                            href={`/applications/${app.id}`}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-colors"
+                          >
+                            <span>Open Hub</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}

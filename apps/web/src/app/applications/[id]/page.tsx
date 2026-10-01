@@ -324,10 +324,11 @@ export default function ApplicationDetailPage() {
                   href={job.jobUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-sky-400 transition-colors"
-                  title="Open Original Job Listing"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/30 transition-all ml-2"
+                  title="Open Original Job Posting to Apply"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <span>Apply on Employer Site</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               )}
             </div>

@@ -156,7 +156,7 @@ export default function EmailDetailPage() {
       <Navbar />
 
       {/* Sub Header */}
-      <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-16 z-40">
+      <div className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link
             href="/emails"

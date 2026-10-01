@@ -16,6 +16,8 @@ export class GmailController {
       res.status(200).json({
         success: true,
         data: connection,
+        isMock: GmailClient.isMockMode(),
+        mode: GmailClient.isMockMode() ? 'MOCK' : 'REAL',
       });
     } catch (err) {
       next(err);
